@@ -1,14 +1,16 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import Image from 'next/image';
 import type { Take } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { formatTimeForDisplay } from '@/lib/utils';
 import Timeline from './Timeline';
-import { UploadCloud } from 'lucide-react';
+import { Loader2, UploadCloud } from 'lucide-react';
+import { transcribeAudio } from '@/ai/flows/transcribe-audio';
+import { useToast } from '@/hooks/use-toast';
 
 interface VideoPlayerProps {
   videoRef: React.RefObject<HTMLVideoElement>;
@@ -17,6 +19,7 @@ interface VideoPlayerProps {
   posterHint?: string;
   onFileChange: (file: File) => void;
   takes: Take[];
+  onTakesUpdate: (takes: Take[]) => void;
   currentIndex: number;
   setCurrentIndex: (index: number) => void;
   onTimeUpdate: (time: number) => void;
@@ -32,6 +35,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   posterHint,
   onFileChange,
   takes,
+  onTakesUpdate,
   currentIndex,
   setCurrentIndex,
   onTimeUpdate,
@@ -40,6 +44,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   videoDuration,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const { toast } = useToast();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -53,6 +60,62 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       fileInputRef.current?.click();
     }
   };
+  
+  const handleAudioFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsTranscribing(true);
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const audioDataUri = reader.result as string;
+        const result = await transcribeAudio({ audioDataUri });
+        
+        if (result.segments && result.segments.length > 0) {
+          const newTakes: Take[] = result.segments.map((segment, index) => ({
+            id: index + 1,
+            character: `Speaker ${segment.speaker}`,
+            time: `${formatTimeForDisplay(segment.start)} - ${formatTimeForDisplay(segment.end)}`,
+            startSeconds: segment.start,
+            endSeconds: segment.end,
+            original: segment.text,
+            translation: '',
+            notes: '',
+            status: 'In Progress',
+          }));
+          onTakesUpdate(newTakes);
+           toast({
+            title: 'Transcription Complete',
+            description: `Successfully transcribed ${newTakes.length} takes.`,
+          });
+        } else {
+           toast({
+            title: 'Transcription Complete',
+            description: 'No speech was detected in the audio.',
+          });
+          onTakesUpdate([]);
+        }
+      };
+    } catch (error) {
+      console.error('Transcription failed:', error);
+      toast({
+        title: 'Transcription Failed',
+        description: 'Could not transcribe the audio file.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  const openAudioFilePicker = () => {
+    audioInputRef.current?.click();
+  }
+
 
   return (
     <Card>
@@ -111,6 +174,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               videoRef.current && (videoRef.current.currentTime = time)
             }
           />
+        </div>
+         <div className="mt-4">
+          <Button onClick={openAudioFilePicker} disabled={isTranscribing}>
+            {isTranscribing ? <Loader2 className="mr-2 animate-spin" /> : null}
+            Transcribe Audio
+          </Button>
+          <Input
+            ref={audioInputRef}
+            type="file"
+            className="hidden"
+            accept="audio/*"
+            onChange={handleAudioFileChange}
+          />
+          <p className="text-xs text-muted-foreground mt-2">Upload an audio file to automatically generate takes.</p>
         </div>
       </CardContent>
     </Card>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import type { Take } from '@/lib/types';
+import type { Take, ProjectSettings } from '@/lib/types';
 import {
   Card,
   CardContent,
@@ -16,7 +16,7 @@ import {
   Play,
   Sparkles,
   Square,
-  ChevronsRight,
+  BookMarked,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -26,25 +26,30 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import SentimentDisplay from './SentimentDisplay';
 import { Skeleton } from './ui/skeleton';
+import { Input } from './ui/input';
 
 interface TranslationPanelProps {
   currentTake: Take | undefined;
   currentIndex: number;
   totalTakes: number;
-  onTranslationChange: (translation: string) => void;
+  onTakeChange: (take: Take) => void;
+  onSuggestTranslation: (take: Take) => void;
   onPrevious: () => void;
   onNext: () => void;
   videoRef: React.RefObject<HTMLVideoElement>;
+  settings: ProjectSettings;
 }
 
 const TranslationPanel: React.FC<TranslationPanelProps> = ({
   currentTake,
   currentIndex,
   totalTakes,
-  onTranslationChange,
+  onTakeChange,
+  onSuggestTranslation,
   onPrevious,
   onNext,
   videoRef,
+  settings
 }) => {
   const { toast } = useToast();
   const [isSuggesting, setIsSuggesting] = useState(false);
@@ -86,17 +91,16 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({
     }, 'Playing take.');
 
   const suggestTranslation = async () => {
+    if (!currentTake) return;
     setIsSuggesting(true);
-    // Placeholder for AI translation
-    await new Promise(res => setTimeout(res, 1500));
-    onTranslationChange(
-      `${currentTake?.original} (AI translation placeholder)`
-    );
+    await onSuggestTranslation(currentTake);
     setIsSuggesting(false);
-    toast({
-      title: 'Translation Suggested',
-      description: 'An AI-powered suggestion has been generated.',
-    });
+  };
+  
+  const handleFieldChange = (field: keyof Take, value: string | number) => {
+    if (currentTake) {
+      onTakeChange({ ...currentTake, [field]: value });
+    }
   };
 
   if (!currentTake) {
@@ -130,12 +134,18 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground pt-2">
-          <span>
-            <strong>Character:</strong> {currentTake.character}
-          </span>
-          <span>
-            <strong>Timecode:</strong> {currentTake.time}
-          </span>
+            <Input
+                value={currentTake.character}
+                onChange={(e) => handleFieldChange('character', e.target.value)}
+                className="h-7 w-28 text-sm"
+                placeholder="Character"
+            />
+            <Input
+                value={currentTake.time}
+                onChange={(e) => handleFieldChange('time', e.target.value)}
+                className="h-7 w-40 text-sm"
+                placeholder="00:00.000 - 00:00.000"
+            />
           <Badge variant={currentTake.status === 'Translated' ? 'default' : 'secondary'} className="bg-accent text-accent-foreground">
             {currentTake.status}
           </Badge>
@@ -147,14 +157,15 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({
             htmlFor="original-text"
             className="mb-2 block text-sm font-medium"
           >
-            Original ({currentTake.notes || 'EN'})
+            Original ({settings.sourceLang})
           </Label>
-          <div
-            id="original-text"
-            className="rounded-md border bg-muted/50 p-3 text-sm min-h-[60px]"
-          >
-            {currentTake.original}
-          </div>
+           <Textarea
+              id="original-text"
+              value={currentTake.original}
+              onChange={(e) => handleFieldChange('original', e.target.value)}
+              placeholder="Original text..."
+              className="min-h-[90px] resize-y"
+            />
           <SentimentDisplay text={currentTake.original} />
         </div>
         <Separator />
@@ -164,7 +175,7 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({
               htmlFor="translation-text"
               className="text-sm font-medium"
             >
-              Translation ({'ES'})
+              Translation ({settings.targetLang})
             </Label>
             <span className="text-xs text-muted-foreground">
               Chars: {currentTake.translation.length}
@@ -173,14 +184,14 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({
           <Textarea
             id="translation-text"
             value={currentTake.translation}
-            onChange={e => onTranslationChange(e.target.value)}
+            onChange={(e) => handleFieldChange('translation', e.target.value)}
             placeholder="Enter your dubbing translation..."
             className="min-h-[120px] resize-y"
           />
         </div>
       </CardContent>
       <CardFooter className="flex-col items-stretch gap-4">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2">
           <Button
             variant="outline"
             onClick={suggestTranslation}
@@ -190,10 +201,6 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({
               className={`mr-2 h-4 w-4 ${isSuggesting ? 'animate-spin' : ''}`}
             />
             Suggest Translation
-          </Button>
-          <Button variant="outline" onClick={() => {toast({title: "Coming Soon!", description: "Automated timecode adjustment is under development."})}}>
-            <ChevronsRight className="mr-2 h-4 w-4" />
-            Auto-Adjust Timecode
           </Button>
         </div>
         <div className="grid grid-cols-2 gap-2">

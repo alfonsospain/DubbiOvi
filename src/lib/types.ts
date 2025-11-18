@@ -21,3 +21,10 @@ export interface Language {
   code: string;
   name: string;
 }
+
+export interface GlossaryEntry {
+    id: string;
+    sourceTerm: string;
+    targetTerm: string;
+    notes?: string;
+}

@@ -2,13 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { ProjectSettings, Take } from '@/lib/types';
-import { DEFAULT_PROJECT_SETTINGS, DEFAULT_TAKES } from '@/lib/data';
-import {
-  Cloud,
-  HardDriveDownload,
-  HardDriveUpload,
-  User,
-} from 'lucide-react';
+import { DEFAULT_PROJECT_SETTINGS } from '@/lib/data';
 import Header from '@/components/Header';
 import ProjectSettingsComponent from '@/components/ProjectSettings';
 import VideoPlayer from '@/components/VideoPlayer';
@@ -16,9 +10,9 @@ import TranslationPanel from '@/components/TranslationPanel';
 import ImportExportPanel from '@/components/ImportExportPanel';
 import { useToast } from '@/hooks/use-toast';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-
-const PROJECT_SETTINGS_KEY = 'dubbing_project_settings_v3';
-const PROJECT_TAKES_KEY = 'dubbing_project_takes_v3';
+import GlossaryPanel from '@/components/GlossaryPanel';
+import { getTranslationSuggestion } from '@/ai/ai-translation-suggestions';
+import type { GlossaryEntry } from '@/lib/types';
 
 export default function DubbingStudioPro() {
   const { toast } = useToast();
@@ -26,6 +20,7 @@ export default function DubbingStudioPro() {
     DEFAULT_PROJECT_SETTINGS
   );
   const [takes, setTakes] = useState<Take[]>([]);
+  const [glossary, setGlossary] = useState<GlossaryEntry[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -41,44 +36,12 @@ export default function DubbingStudioPro() {
     setIsClient(true);
   }, []);
 
-  useEffect(() => {
-    if (!isClient) return;
-
-    try {
-      const savedSettings = localStorage.getItem(PROJECT_SETTINGS_KEY);
-      if (savedSettings) {
-        setSettings(JSON.parse(savedSettings));
-      }
-
-      const savedTakes = localStorage.getItem(PROJECT_TAKES_KEY);
-      if (savedTakes) {
-        const parsedTakes = JSON.parse(savedTakes);
-        if (parsedTakes.length > 0) {
-          setTakes(parsedTakes);
-        } else {
-          setTakes(DEFAULT_TAKES);
-        }
-      } else {
-        setTakes(DEFAULT_TAKES);
-      }
-    } catch (error) {
-      console.error('Failed to load data from localStorage', error);
-      toast({
-        title: 'Error',
-        description: 'Could not load saved data. Using defaults.',
-        variant: 'destructive',
-      });
-      setTakes(DEFAULT_TAKES);
-    }
-  }, [isClient, toast]);
-
   const saveToCloud = useCallback(async () => {
     setIsSaving(true);
-    // Simulate cloud save
+    // This is where you would save to Firestore
     await new Promise(resolve => setTimeout(resolve, 1000));
     try {
-      localStorage.setItem(PROJECT_SETTINGS_KEY, JSON.stringify(settings));
-      localStorage.setItem(PROJECT_TAKES_KEY, JSON.stringify(takes));
+      console.log('Saving project:', { settings, takes, glossary });
       setLastSaved(new Date());
       toast({
         title: 'Project Saved',
@@ -94,7 +57,7 @@ export default function DubbingStudioPro() {
     } finally {
       setIsSaving(false);
     }
-  }, [settings, takes, toast]);
+  }, [settings, takes, glossary, toast]);
 
   const handleSettingsChange = (newSettings: ProjectSettings) => {
     setSettings(newSettings);
@@ -107,15 +70,11 @@ export default function DubbingStudioPro() {
     }
   };
 
-  const handleTranslationChange = (newTranslation: string) => {
-    const newTakes = [...takes];
-    if (newTakes[currentIndex]) {
-      newTakes[currentIndex].translation = newTranslation;
-      newTakes[currentIndex].status = newTranslation.trim()
-        ? 'Translated'
-        : 'In Progress';
-      setTakes(newTakes);
-    }
+  const handleCurrentTakeChange = (updatedTake: Take) => {
+    const newTakes = takes.map(take =>
+      take.id === updatedTake.id ? updatedTake : take
+    );
+    setTakes(newTakes);
   };
 
   const handleVideoFileChange = (file: File) => {
@@ -125,6 +84,44 @@ export default function DubbingStudioPro() {
     setVideoFile(file);
     const url = URL.createObjectURL(file);
     setVideoUrl(url);
+  };
+  
+  const suggestTranslation = async (take: Take) => {
+    try {
+      const result = await getTranslationSuggestion({
+        originalText: take.original,
+        sourceLanguage: settings.sourceLang,
+        targetLanguage: settings.targetLang,
+        glossary,
+      });
+
+      if (result.translation) {
+        const newTakes = takes.map(t =>
+          t.id === take.id
+            ? {
+                ...t,
+                translation: result.translation,
+                status: 'Translated' as const,
+              }
+            : t
+        );
+        setTakes(newTakes);
+        toast({
+          title: 'Translation Suggested',
+          description: 'An AI-powered suggestion has been generated.',
+        });
+      } else {
+        throw new Error('No translation returned.');
+      }
+    } catch (error) {
+      console.error('Translation suggestion failed', error);
+      toast({
+        title: 'Translation Failed',
+        description:
+          'Could not get a translation suggestion. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const currentTake = takes[currentIndex];
@@ -156,6 +153,7 @@ export default function DubbingStudioPro() {
               onDurationChange={setVideoDuration}
               videoDuration={videoDuration}
               currentTime={currentTime}
+              onTakesUpdate={setTakes}
             />
           </div>
           <div className="row-start-2 lg:row-start-auto lg:col-span-1">
@@ -163,23 +161,28 @@ export default function DubbingStudioPro() {
               currentTake={currentTake}
               currentIndex={currentIndex}
               totalTakes={takes.length}
-              onTranslationChange={handleTranslationChange}
+              onTakeChange={handleCurrentTakeChange}
+              onSuggestTranslation={suggestTranslation}
               onPrevious={() => setCurrentIndex(i => Math.max(0, i - 1))}
               onNext={() =>
                 setCurrentIndex(i => Math.min(takes.length - 1, i + 1))
               }
               videoRef={videoRef}
+              settings={settings}
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <ProjectSettingsComponent
-            settings={settings}
-            onSettingsChange={handleSettingsChange}
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+           <div className="lg:col-span-2">
+            <ProjectSettingsComponent
+              settings={settings}
+              onSettingsChange={handleSettingsChange}
+            />
+          </div>
           <ImportExportPanel takes={takes} onImport={handleTakesChange} />
         </div>
+        <GlossaryPanel glossary={glossary} onGlossaryChange={setGlossary} />
       </main>
     </div>
   );

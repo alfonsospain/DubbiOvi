@@ -9,11 +9,20 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { GlossaryEntry } from '@/lib/types';
+
+const GlossaryEntrySchema = z.object({
+  id: z.string(),
+  sourceTerm: z.string(),
+  targetTerm: z.string(),
+  notes: z.string().optional(),
+});
 
 const GetTranslationSuggestionInputSchema = z.object({
   originalText: z.string().describe('The original text to translate.'),
   sourceLanguage: z.string().describe('The language of the original text.'),
   targetLanguage: z.string().describe('The language to translate the text into.'),
+  glossary: z.array(GlossaryEntrySchema).optional().describe('A list of glossary terms to ensure consistent translation.')
 });
 export type GetTranslationSuggestionInput = z.infer<typeof GetTranslationSuggestionInputSchema>;
 
@@ -33,6 +42,14 @@ const translationPrompt = ai.definePrompt({
   prompt: `You are a translation expert.
 Translate the given text from {{sourceLanguage}} to {{targetLanguage}}.
 
+{{#if glossary}}
+You MUST use the following glossary to ensure consistency.
+Glossary:
+{{#each glossary}}
+- "{{sourceTerm}}" must be translated as "{{targetTerm}}"
+{{/each}}
+{{/if}}
+
 Original text: {{{originalText}}}
 Translation:`,
 });
@@ -45,6 +62,21 @@ const getTranslationSuggestionFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await translationPrompt(input);
-    return output!;
+    
+    if (!output) {
+      return { translation: "" };
+    }
+
+    // Secondary check to apply glossary, as LLMs can sometimes ignore prompt instructions
+    let translatedText = output.translation;
+    if (input.glossary) {
+      for (const entry of input.glossary) {
+        // Use a case-insensitive regex to replace all occurrences of the source term
+        const regex = new RegExp(`\\b${entry.sourceTerm}\\b`, 'gi');
+        translatedText = translatedText.replace(regex, entry.targetTerm);
+      }
+    }
+
+    return { translation: translatedText };
   }
 );

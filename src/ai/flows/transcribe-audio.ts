@@ -59,11 +59,10 @@ const transcribeAudioFlow = ai.defineFlow(
           },
         },
         {
-          text: 'Transcribe this audio. Enable speaker diarization.',
+          text: 'Transcribe this audio. Enable speaker diarization. Output in JSON format.',
         }
       ],
       config: {
-        features: ['SPEECH_DIARIZATION'],
         responseMimeType: 'application/json',
       },
     });

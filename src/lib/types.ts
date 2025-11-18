@@ -1,0 +1,23 @@
+export interface ProjectSettings {
+  title: string;
+  sourceLang: string;
+  targetLang: string;
+  translator: string;
+}
+
+export interface Take {
+  id: number;
+  character: string;
+  time: string;
+  startSeconds: number;
+  endSeconds: number;
+  original: string;
+  translation: string;
+  notes: string;
+  status: 'In Progress' | 'Translated' | 'Approved';
+}
+
+export interface Language {
+  code: string;
+  name: string;
+}

@@ -60,7 +60,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         <div className="relative aspect-video w-full cursor-pointer overflow-hidden rounded-lg bg-slate-900 shadow-lg">
           <video
             ref={videoRef}
-            src={videoUrl || ''}
+            src={videoUrl || undefined}
             controls={!!videoUrl}
             className="h-full w-full"
             onTimeUpdate={e => onTimeUpdate(e.currentTarget.currentTime)}

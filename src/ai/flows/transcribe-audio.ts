@@ -63,9 +63,7 @@ const transcribeAudioFlow = ai.defineFlow(
         }
       ],
       config: {
-        recognitionConfig: {
-          enableSpeakerDiarization: true,
-        },
+        features: ['SPEECH_DIARIZATION'],
         responseMimeType: 'application/json',
       },
     });

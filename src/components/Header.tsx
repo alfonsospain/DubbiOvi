@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Cloud, Film, Loader2, User } from 'lucide-react';
+import { Cloud, Loader2, User, Mic } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface HeaderProps {
@@ -29,8 +29,8 @@ const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
       <div className="flex items-center gap-2">
-        <Film className="h-6 w-6 text-primary" />
-        <h1 className="text-lg font-semibold md:text-xl">{projectTitle}</h1>
+        <Mic className="h-6 w-6 text-primary" />
+        <h1 className="text-lg font-semibold md:text-xl">DUBIOVI</h1>
       </div>
       <div className="ml-auto flex items-center gap-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">

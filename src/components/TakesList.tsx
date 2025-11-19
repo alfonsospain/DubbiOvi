@@ -14,10 +14,10 @@ import {
 } from './ui/table';
 import { getTranslationSuggestion } from '@/ai/ai-translation-suggestions';
 import { useToast } from '@/hooks/use-toast';
-import { Play, Sparkles, Trash2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Sparkles, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
+import { Textarea } from './ui/textarea';
 
 interface TakesListProps {
   takes: Take[];
@@ -52,28 +52,6 @@ const TakesList: React.FC<TakesListProps> = ({
     if (take) {
       const updatedTake = { ...take, [field]: value };
       onTakeUpdate(updatedTake);
-    }
-  };
-
-  const playSegment = (take: Take) => {
-    if (videoRef.current) {
-      const video = videoRef.current;
-      video.currentTime = take.startSeconds;
-      video.play();
-      const checkTime = () => {
-        if (video.currentTime >= take.endSeconds) {
-          video.pause();
-        } else {
-          requestAnimationFrame(checkTime);
-        }
-      };
-      requestAnimationFrame(checkTime);
-    } else {
-      toast({
-        title: 'No video loaded',
-        description: 'Please upload a video to play segments.',
-        variant: 'destructive',
-      });
     }
   };
 
@@ -123,85 +101,34 @@ const TakesList: React.FC<TakesListProps> = ({
         <Table>
           <TableHeader className="sticky top-0 bg-background z-10">
             <TableRow>
-              <TableHead className="w-[110px]">Start</TableHead>
-              <TableHead className="w-[110px]">End</TableHead>
-              <TableHead className="w-[150px]">Character</TableHead>
-              <TableHead>Transcript</TableHead>
-              <TableHead>Adaptation</TableHead>
-              <TableHead className="w-[120px] text-right">Actions</TableHead>
+              <TableHead>Source Text</TableHead>
+              <TableHead>Target Text</TableHead>
+              <TableHead className="w-[100px] text-right">Tools</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {takes.map((take, index) => (
               <TableRow key={take.id} className={cn(isTakeActive(take) && "bg-primary/10")} onClick={() => onTakeSelect(index)}>
                 <TableCell>
-                  <Input
-                    type="text"
-                    value={take.time.split('-->')[0].trim()}
-                    onBlur={(e) =>
-                        handleFieldChange(
-                            take.id,
-                            'time',
-                            `${e.target.value} --> ${take.time.split('-->')[1].trim()}`
-                        )
-                    }
-                    onChange={e => {
-                        const newTakes = [...takes];
-                        newTakes[index].time = `${e.target.value} --> ${take.time.split('-->')[1].trim()}`;
-                    }}
-                    className="h-8 font-mono text-xs"
-                  />
-                </TableCell>
-                 <TableCell>
-                  <Input
-                    type="text"
-                    value={take.time.split('-->')[1].trim()}
-                     onBlur={(e) =>
-                      handleFieldChange(
-                        take.id,
-                        'time',
-                         `${take.time.split('-->')[0].trim()} --> ${e.target.value}`
-                      )
-                    }
-                     onChange={e => {
-                        const newTakes = [...takes];
-                        newTakes[index].time = `${take.time.split('-->')[0].trim()} --> ${e.target.value}`;
-                    }}
-                    className="h-8 font-mono text-xs"
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    type="text"
-                    defaultValue={take.character}
-                    onBlur={e =>
-                      handleFieldChange(take.id, 'character', e.target.value)
-                    }
-                    className="h-8 text-xs"
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    type="text"
+                  <Textarea
                     defaultValue={take.original}
                     onBlur={e =>
                       handleFieldChange(take.id, 'original', e.target.value)
                     }
-                    className="h-8 text-xs"
+                    className="h-auto text-xs min-h-[60px]"
                   />
                 </TableCell>
                 <TableCell>
-                  <Input
-                    type="text"
+                  <Textarea
                     defaultValue={take.translation}
                     onBlur={e =>
                       handleFieldChange(take.id, 'translation', e.target.value)
                     }
-                    className="h-8 text-xs"
+                    className="h-auto text-xs min-h-[60px]"
                   />
                 </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex gap-1 justify-end">
+                <TableCell className="text-right align-top">
+                  <div className="flex flex-col gap-1 items-end">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -214,14 +141,6 @@ const TakesList: React.FC<TakesListProps> = ({
                           isSuggesting === take.id ? 'animate-spin' : ''
                         }`}
                       />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => playSegment(take)}
-                      title="Play Segment"
-                    >
-                      <Play className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"

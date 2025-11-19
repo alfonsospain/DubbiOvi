@@ -43,6 +43,21 @@ export async function transcribeAudio(
   return transcribeAudioFlow(input);
 }
 
+const transcriptionPrompt = ai.definePrompt({
+  name: 'transcriptionPrompt',
+  input: { schema: TranscribeAudioInputSchema },
+  output: { schema: TranscribeAudioOutputSchema },
+  prompt: `You are an expert transcriptionist.
+Transcribe the following video.
+Your task is to provide a highly accurate transcription of the audio.
+You must identify the different speakers and label them with a unique speaker number.
+You must provide start and end timestamps for each segment of speech.
+Group the segments by speaker.
+
+The output must be in JSON format.`,
+});
+
+
 const transcribeAudioFlow = ai.defineFlow(
   {
     name: 'transcribeAudioFlow',
@@ -50,59 +65,44 @@ const transcribeAudioFlow = ai.defineFlow(
     outputSchema: TranscribeAudioOutputSchema,
   },
   async (input) => {
-    const { output } = await ai.generate({
-      model: 'googleai/gemini-2.5-flash-transcription',
-      prompt: {
-        media: {
-          url: input.audioDataUri,
-        },
-      },
-      config: {
-        responseMimeType: 'application/json',
-      },
+    const { output } = await transcriptionPrompt(input, {
+        model: 'googleai/gemini-1.5-pro'
     });
-
-    if (!output || typeof output !== 'object' || !('results' in output)) {
-        throw new Error('Invalid transcription response from the model.');
+    
+    if (!output) {
+      return { segments: [] };
     }
 
-    const typedOutput = output as { results: { alternatives: { transcript: string; words: { startTime: string, endTime: string, word: string, speakerTag: number }[] }[] }[] };
-
-    const segments: z.infer<typeof SegmentSchema>[] = [];
-    if (typedOutput.results && typedOutput.results.length > 0) {
-      typedOutput.results.forEach(result => {
-        if(result.alternatives && result.alternatives.length > 0) {
-            const firstAlternative = result.alternatives[0];
-            if(firstAlternative.words && firstAlternative.words.length > 0) {
-                let currentSegment: z.infer<typeof SegmentSchema> | null = null;
-
-                firstAlternative.words.forEach(wordInfo => {
-                    const startTime = parseFloat(wordInfo.startTime.replace('s', ''));
-                    const endTime = parseFloat(wordInfo.endTime.replace('s', ''));
-
-                    if (!currentSegment || currentSegment.speaker !== wordInfo.speakerTag) {
-                        if (currentSegment) {
-                            segments.push(currentSegment);
-                        }
-                        currentSegment = {
-                            text: wordInfo.word,
-                            start: startTime,
-                            end: endTime,
-                            speaker: wordInfo.speakerTag,
-                        };
-                    } else {
-                        currentSegment.text += ` ${wordInfo.word}`;
-                        currentSegment.end = endTime;
-                    }
-                });
-                if (currentSegment) {
-                    segments.push(currentSegment);
-                }
-            }
+    // Post-processing to merge segments from the same speaker that are consecutive or close together
+    const mergedSegments: z.infer<typeof SegmentSchema>[] = [];
+    if (output.segments && output.segments.length > 0) {
+      // Sort segments by start time to be safe
+      const sortedSegments = output.segments.sort((a, b) => a.start - b.start);
+      
+      let currentSegment: z.infer<typeof SegmentSchema> | null = null;
+      
+      for(const segment of sortedSegments) {
+        if(!currentSegment) {
+          currentSegment = {...segment};
+          continue;
         }
-      });
-    }
 
-    return { segments };
+        // If same speaker and gap is small (e.g., less than 0.5s), merge
+        if(currentSegment.speaker === segment.speaker && (segment.start - currentSegment.end) < 0.5) {
+          currentSegment.text += ` ${segment.text}`;
+          currentSegment.end = segment.end;
+        } else {
+          // Different speaker or large gap, push current segment and start a new one
+          mergedSegments.push(currentSegment);
+          currentSegment = {...segment};
+        }
+      }
+      // Push the last segment
+      if(currentSegment) {
+        mergedSegments.push(currentSegment);
+      }
+    }
+    
+    return { segments: mergedSegments };
   }
 );

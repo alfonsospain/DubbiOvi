@@ -1,4 +1,6 @@
 import type { ProjectSettings, Take, Language } from './types';
+import { v4 as uuidv4 } from 'uuid';
+
 
 export const DEFAULT_PROJECT_SETTINGS: ProjectSettings = {
   title: 'Courtroom Drama - The Verdict',
@@ -9,7 +11,7 @@ export const DEFAULT_PROJECT_SETTINGS: ProjectSettings = {
 
 export const DEFAULT_TAKES: Take[] = [
   {
-    id: 1,
+    id: uuidv4(),
     character: 'Judge',
     time: '00:02.000 - 00:06.500',
     startSeconds: 2.0,
@@ -21,7 +23,7 @@ export const DEFAULT_TAKES: Take[] = [
     status: 'In Progress',
   },
   {
-    id: 2,
+    id: uuidv4(),
     character: 'Defense Lawyer',
     time: '00:07.000 - 00:12.000',
     startSeconds: 7.0,
@@ -33,7 +35,7 @@ export const DEFAULT_TAKES: Take[] = [
     status: 'In Progress',
   },
   {
-    id: 3,
+    id: uuidv4(),
     character: 'Prosecutor',
     time: '00:12.500 - 00:18.000',
     startSeconds: 12.5,
@@ -44,7 +46,7 @@ export const DEFAULT_TAKES: Take[] = [
     status: 'In Progress',
   },
   {
-    id: 4,
+    id: uuidv4(),
     character: 'Judge',
     time: '00:19.000 - 00:22.000',
     startSeconds: 19.0,

@@ -1,8 +1,17 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { ProjectSettings, Take } from '@/lib/types';
-import { DEFAULT_PROJECT_SETTINGS } from '@/lib/data';
+import {
+  doc,
+  setDoc,
+  getDoc,
+  collection,
+  onSnapshot,
+  writeBatch,
+} from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import type { ProjectSettings, Take, GlossaryEntry } from '@/lib/types';
+import { DEFAULT_PROJECT_SETTINGS, DEFAULT_TAKES } from '@/lib/data';
 import Header from '@/components/Header';
 import ProjectSettingsComponent from '@/components/ProjectSettings';
 import VideoPlayer from '@/components/VideoPlayer';
@@ -12,14 +21,15 @@ import { useToast } from '@/hooks/use-toast';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import GlossaryPanel from '@/components/GlossaryPanel';
 import { getTranslationSuggestion } from '@/ai/ai-translation-suggestions';
-import type { GlossaryEntry } from '@/lib/types';
+import { v4 as uuidv4 } from 'uuid';
 
 export default function DubbingStudioPro() {
+  const db = useFirestore();
   const { toast } = useToast();
   const [settings, setSettings] = useState<ProjectSettings>(
     DEFAULT_PROJECT_SETTINGS
   );
-  const [takes, setTakes] = useState<Take[]>([]);
+  const [takes, setTakes] = useState<Take[]>(DEFAULT_TAKES);
   const [glossary, setGlossary] = useState<GlossaryEntry[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -31,17 +41,69 @@ export default function DubbingStudioPro() {
   const [isClient, setIsClient] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const projectId = 'main-project'; // Using a static project ID for now
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
+  // Effect for loading data from Firestore
+  useEffect(() => {
+    if (!db || !isClient) return;
+
+    const projectDocRef = doc(db, 'projects', projectId);
+    const takesColRef = collection(db, 'projects', projectId, 'takes');
+    const glossaryColRef = collection(db, 'projects', projectId, 'glossary');
+
+    // Load project settings
+    getDoc(projectDocRef).then(docSnap => {
+      if (docSnap.exists()) {
+        setSettings(docSnap.data() as ProjectSettings);
+      } else {
+        // If no settings, save the default ones
+        setDoc(projectDocRef, DEFAULT_PROJECT_SETTINGS);
+      }
+    });
+
+    // Subscribe to takes
+    const unsubscribeTakes = onSnapshot(takesColRef, snapshot => {
+      if (snapshot.empty) {
+        setTakes(DEFAULT_TAKES);
+        return;
+      }
+      const serverTakes = snapshot.docs
+        .map(d => ({ ...(d.data() as Take), id: d.id }))
+        .sort((a, b) => a.startSeconds - b.startSeconds);
+      setTakes(serverTakes);
+    });
+
+    // Subscribe to glossary
+    const unsubscribeGlossary = onSnapshot(glossaryColRef, snapshot => {
+      const serverGlossary = snapshot.docs.map(d => ({
+        ...(d.data() as Omit<GlossaryEntry, 'id'>),
+        id: d.id,
+      }));
+      setGlossary(serverGlossary);
+    });
+
+    return () => {
+      unsubscribeTakes();
+      unsubscribeGlossary();
+    };
+  }, [db, isClient]);
+
   const saveToCloud = useCallback(async () => {
+    if (!db) return;
     setIsSaving(true);
-    // This is where you would save to Firestore
-    await new Promise(resolve => setTimeout(resolve, 1000));
     try {
-      console.log('Saving project:', { settings, takes, glossary });
+      const batch = writeBatch(db);
+
+      // Save settings
+      const projectDocRef = doc(db, 'projects', projectId);
+      batch.set(projectDocRef, settings);
+
+      await batch.commit();
+
       setLastSaved(new Date());
       toast({
         title: 'Project Saved',
@@ -57,24 +119,48 @@ export default function DubbingStudioPro() {
     } finally {
       setIsSaving(false);
     }
-  }, [settings, takes, glossary, toast]);
+  }, [db, settings, toast]);
 
   const handleSettingsChange = (newSettings: ProjectSettings) => {
     setSettings(newSettings);
+    // Persist immediately
+    if (db) {
+        setDoc(doc(db, 'projects', projectId), newSettings);
+    }
   };
 
-  const handleTakesChange = (newTakes: Take[]) => {
-    setTakes(newTakes);
-    if (currentIndex >= newTakes.length) {
-      setCurrentIndex(Math.max(0, newTakes.length - 1));
+  const handleTakesChange = async (newTakes: Take[]) => {
+    if (!db) return;
+    
+    const newTakesWithIds = newTakes.map(t => ({...t, id: t.id || uuidv4()}));
+
+    const batch = writeBatch(db);
+    const takesColRef = collection(db, 'projects', projectId, 'takes');
+    
+    newTakesWithIds.forEach(take => {
+        const takeRef = doc(takesColRef, take.id);
+        batch.set(takeRef, take);
+    });
+    await batch.commit();
+
+    setTakes(newTakesWithIds);
+    if (currentIndex >= newTakesWithIds.length) {
+      setCurrentIndex(Math.max(0, newTakesWithIds.length - 1));
     }
   };
 
   const handleCurrentTakeChange = (updatedTake: Take) => {
+    // Optimistic update
     const newTakes = takes.map(take =>
       take.id === updatedTake.id ? updatedTake : take
     );
     setTakes(newTakes);
+    
+    // Persist change to DB
+    if (db) {
+      const takeRef = doc(db, 'projects', projectId, 'takes', updatedTake.id);
+      setDoc(takeRef, updatedTake, { merge: true });
+    }
   };
 
   const handleVideoFileChange = (file: File) => {
@@ -86,6 +172,35 @@ export default function DubbingStudioPro() {
     setVideoUrl(url);
   };
   
+  const handleGlossaryChange = async (newGlossary: GlossaryEntry[]) => {
+     if (!db) return;
+     const batch = writeBatch(db);
+     const glossaryColRef = collection(db, 'projects', projectId, 'glossary');
+     
+     const currentIds = new Set(newGlossary.map(e => e.id));
+     const oldIds = new Set(glossary.map(e => e.id));
+
+     // Delete removed entries
+     oldIds.forEach(id => {
+       if (!currentIds.has(id)) {
+         batch.delete(doc(glossaryColRef, id));
+       }
+     });
+
+     // Add/update entries
+     newGlossary.forEach(entry => {
+       const entryRef = doc(glossaryColRef, entry.id);
+       batch.set(entryRef, {
+           sourceTerm: entry.sourceTerm,
+           targetTerm: entry.targetTerm,
+           notes: entry.notes
+       });
+     });
+
+     await batch.commit();
+     setGlossary(newGlossary);
+  };
+
   const suggestTranslation = async (take: Take) => {
     try {
       const result = await getTranslationSuggestion({
@@ -96,16 +211,12 @@ export default function DubbingStudioPro() {
       });
 
       if (result.translation) {
-        const newTakes = takes.map(t =>
-          t.id === take.id
-            ? {
-                ...t,
-                translation: result.translation,
-                status: 'Translated' as const,
-              }
-            : t
-        );
-        setTakes(newTakes);
+        const updatedTake = {
+          ...take,
+          translation: result.translation,
+          status: 'Translated' as const,
+        };
+        handleCurrentTakeChange(updatedTake);
         toast({
           title: 'Translation Suggested',
           description: 'An AI-powered suggestion has been generated.',
@@ -155,33 +266,47 @@ export default function DubbingStudioPro() {
               currentTime={currentTime}
             />
           </div>
-          <div className="row-start-2 lg:row-start-auto lg:col-span-1">
-            <TranslationPanel
-              currentTake={currentTake}
-              currentIndex={currentIndex}
-              totalTakes={takes.length}
-              onTakeChange={handleCurrentTakeChange}
-              onSuggestTranslation={suggestTranslation}
-              onPrevious={() => setCurrentIndex(i => Math.max(0, i - 1))}
-              onNext={() =>
-                setCurrentIndex(i => Math.min(takes.length - 1, i + 1))
-              }
-              videoRef={videoRef}
-              settings={settings}
-            />
+          <div className="row-start-3 lg:row-start-auto lg:col-span-1">
+            <ImportExportPanel takes={takes} onImport={handleTakesChange} />
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
            <div className="lg:col-span-2">
+            {currentTake ? (
+              <TranslationPanel
+                currentTake={currentTake}
+                currentIndex={currentIndex}
+                totalTakes={takes.length}
+                onTakeChange={handleCurrentTakeChange}
+                onSuggestTranslation={suggestTranslation}
+                onPrevious={() => setCurrentIndex(i => Math.max(0, i - 1))}
+                onNext={() =>
+                  setCurrentIndex(i => Math.min(takes.length - 1, i + 1))
+                }
+                videoRef={videoRef}
+                settings={settings}
+              />
+            ) : (
+               <Card>
+                <CardHeader>
+                  <CardTitle>No Takes</CardTitle>
+                  <CardDescription>Import a script to get started.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p>Use the Data Management panel to import a script file in JSON format.</p>
+                </CardContent>
+               </Card>
+            )}
+          </div>
+          <div className="lg:col-span-1">
             <ProjectSettingsComponent
-              settings={settings}
-              onSettingsChange={handleSettingsChange}
+                settings={settings}
+                onSettingsChange={handleSettingsChange}
             />
           </div>
-          <ImportExportPanel takes={takes} onImport={handleTakesChange} />
         </div>
-        <GlossaryPanel glossary={glossary} onGlossaryChange={setGlossary} />
+        <GlossaryPanel glossary={glossary} onGlossaryChange={handleGlossaryChange} />
       </main>
     </div>
   );

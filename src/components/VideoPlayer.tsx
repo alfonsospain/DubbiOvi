@@ -1,16 +1,13 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import Image from 'next/image';
 import type { Take } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { formatTimeForDisplay } from '@/lib/utils';
 import Timeline from './Timeline';
-import { Loader2, UploadCloud } from 'lucide-react';
-import { transcribeAudio } from '@/ai/flows/transcribe-audio';
-import { useToast } from '@/hooks/use-toast';
+import { UploadCloud } from 'lucide-react';
 
 interface VideoPlayerProps {
   videoRef: React.RefObject<HTMLVideoElement>;
@@ -19,7 +16,6 @@ interface VideoPlayerProps {
   posterHint?: string;
   onFileChange: (file: File) => void;
   takes: Take[];
-  onTakesUpdate: (takes: Take[]) => void;
   currentIndex: number;
   setCurrentIndex: (index: number) => void;
   onTimeUpdate: (time: number) => void;
@@ -35,7 +31,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   posterHint,
   onFileChange,
   takes,
-  onTakesUpdate,
   currentIndex,
   setCurrentIndex,
   onTimeUpdate,
@@ -44,72 +39,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   videoDuration,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const { toast } = useToast();
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       onFileChange(file);
-      await handleTranscription(file);
     }
   };
-
-  const handleTranscription = async (file: File) => {
-    setIsTranscribing(true);
-    toast({
-      title: 'Transcription Started',
-      description:
-        'The audio is being transcribed. This may take a few minutes for longer videos.',
-    });
-
-    try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async () => {
-        const audioDataUri = reader.result as string;
-        const result = await transcribeAudio({ audioDataUri });
-
-        if (result.segments && result.segments.length > 0) {
-          const newTakes: Take[] = result.segments.map((segment, index) => ({
-            id: crypto.randomUUID(),
-            character: `Speaker ${segment.speaker}`,
-            time: `${formatTimeForDisplay(segment.start)} - ${formatTimeForDisplay(segment.end)}`,
-            startSeconds: segment.start,
-            endSeconds: segment.end,
-            original: segment.text,
-            translation: '',
-            notes: '',
-            status: 'In Progress',
-          }));
-          onTakesUpdate(newTakes);
-          toast({
-            title: 'Transcription Complete',
-            description: `Successfully transcribed ${newTakes.length} takes.`,
-          });
-        } else {
-          toast({
-            title: 'Transcription Complete',
-            description: 'No speech was detected in the audio.',
-          });
-          onTakesUpdate([]);
-        }
-      };
-      reader.onerror = (error) => {
-          throw new Error('Failed to read file for transcription.');
-      }
-    } catch (error) {
-      console.error('Transcription failed:', error);
-      toast({
-        title: 'Transcription Failed',
-        description: 'Could not transcribe the audio. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsTranscribing(false);
-    }
-  };
-
 
   const handleVideoClick = () => {
     if (!videoUrl) {
@@ -144,32 +80,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   className="object-cover -z-10 opacity-30"
                 />
               )}
-              {isTranscribing ? (
-                <>
-                  <Loader2 className="h-16 w-16 text-muted-foreground animate-spin" />
-                  <h3 className="text-xl font-semibold">Transcribing...</h3>
-                  <p className="text-muted-foreground">
-                    This may take a moment. Please wait.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <UploadCloud className="h-16 w-16 text-muted-foreground" />
-                  <h3 className="text-xl font-semibold">
-                    Upload Video to Transcribe
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Click here to select a video file (MP4, WebM, etc.)
-                  </p>
-                </>
-              )}
+              <UploadCloud className="h-16 w-16 text-muted-foreground" />
+              <h3 className="text-xl font-semibold">Upload Video</h3>
+              <p className="text-muted-foreground">
+                Click here to select a video file to sync with your script.
+              </p>
               <Input
                 ref={fileInputRef}
                 type="file"
                 className="hidden"
-                accept="video/*,audio/*"
+                accept="video/*"
                 onChange={handleFileChange}
-                disabled={isTranscribing}
               />
             </div>
           )}

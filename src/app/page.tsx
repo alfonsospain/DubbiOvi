@@ -153,7 +153,6 @@ export default function DubbingStudioPro() {
               onDurationChange={setVideoDuration}
               videoDuration={videoDuration}
               currentTime={currentTime}
-              onTakesUpdate={setTakes}
             />
           </div>
           <div className="row-start-2 lg:row-start-auto lg:col-span-1">

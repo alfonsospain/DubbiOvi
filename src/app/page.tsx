@@ -22,6 +22,8 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import GlossaryPanel from '@/components/GlossaryPanel';
 import { getTranslationSuggestion } from '@/ai/ai-translation-suggestions';
 import { v4 as uuidv4 } from 'uuid';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+
 
 export default function DubbingStudioPro() {
   const db = useFirestore();

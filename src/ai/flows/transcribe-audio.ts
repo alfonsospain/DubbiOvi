@@ -48,7 +48,6 @@ const transcriptionPrompt = ai.definePrompt({
   input: { schema: TranscribeAudioInputSchema },
   output: { schema: TranscribeAudioOutputSchema },
   prompt: `You are an expert transcriptionist.
-Transcribe the following video.
 Your task is to provide a highly accurate transcription of the audio.
 You must identify the different speakers and label them with a unique speaker number.
 You must provide start and end timestamps for each segment of speech.
@@ -66,7 +65,7 @@ const transcribeAudioFlow = ai.defineFlow(
   },
   async (input) => {
     const { output } = await transcriptionPrompt(input, {
-        model: 'googleai/gemini-1.5-pro'
+        model: 'googleai/gemini-1.5-pro-latest'
     });
     
     if (!output) {

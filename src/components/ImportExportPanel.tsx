@@ -20,10 +20,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { toSRT, toVTT, parseTimeToSeconds } from '@/lib/utils';
-import { HardDriveDownload, HardDriveUpload, FileText } from 'lucide-react';
+import { toSRT, toVTT } from '@/lib/utils';
+import { HardDriveDownload, HardDriveUpload, FileText, UploadCloud } from 'lucide-react';
 import { Input } from './ui/input';
 import { v4 as uuidv4 } from 'uuid';
+import mammoth from 'mammoth';
+
 
 interface ImportExportPanelProps {
   takes: Take[];
@@ -147,11 +149,31 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
-          const text = e.target?.result as string;
-          handleScriptImport(text);
-      };
-      reader.readAsText(file);
+      if (file.name.endsWith('.docx')) {
+        reader.onload = (e) => {
+            const arrayBuffer = e.target?.result as ArrayBuffer;
+            mammoth.extractRawText({ arrayBuffer: arrayBuffer })
+                .then(result => {
+                    handleScriptImport(result.value);
+                })
+                .catch(err => {
+                    toast({
+                        title: 'DOCX Import Failed',
+                        description: 'Could not extract text from the .docx file.',
+                        variant: 'destructive'
+                    });
+                    console.error(err);
+                });
+        };
+        reader.readAsArrayBuffer(file);
+
+      } else { // Assume .txt or other plain text
+        reader.onload = (e) => {
+            const text = e.target?.result as string;
+            handleScriptImport(text);
+        };
+        reader.readAsText(file);
+      }
     }
     // Reset file input
     if(fileInputRef.current) {
@@ -215,30 +237,37 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
                     <TabsTrigger value="json">From JSON</TabsTrigger>
                  </TabsList>
                  <TabsContent value="script" className="mt-4 space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                        Upload a .txt or .docx file, or paste your script below. Paragraphs will be treated as separate takes.
+                    </p>
+                    <Button variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
+                        <UploadCloud className="mr-2 h-4 w-4" />
+                        Upload .txt or .docx file
+                    </Button>
                     <Textarea
                         value={importScript}
                         onChange={e => setImportScript(e.target.value)}
-                        className="h-48 font-mono text-xs"
-                        placeholder='Paste your plain text script here. Paragraphs will be treated as separate takes.'
+                        className="h-32 font-mono text-xs"
+                        placeholder='Or paste your plain text script here...'
                     />
-                    <div className="flex gap-2">
-                        <Button onClick={() => handleScriptImport(importScript)}>Import from Text</Button>
-                        <Button variant="outline" onClick={() => fileInputRef.current?.click()}>Upload .txt file</Button>
-                    </div>
+                    <Button onClick={() => handleScriptImport(importScript)} disabled={!importScript}>Import from Text</Button>
                      <Input
                         ref={fileInputRef}
                         type="file"
                         className="hidden"
-                        accept=".txt"
+                        accept=".txt,.docx"
                         onChange={handleFileChange}
                       />
                  </TabsContent>
                  <TabsContent value="json" className="mt-4 space-y-4">
+                     <p className="text-sm text-muted-foreground">
+                        For advanced users restoring a project from a previous export.
+                     </p>
                      <Textarea
                         value={importJson}
                         onChange={e => setImportJson(e.target.value)}
                         className="h-48 font-mono text-xs"
-                        placeholder='Paste your JSON data here. For advanced users restoring a project.'
+                        placeholder='Paste your JSON data here...'
                       />
                       <Button onClick={handleJsonImport}>Load Project from JSON</Button>
                  </TabsContent>

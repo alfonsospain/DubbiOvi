@@ -17,10 +17,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Play, Sparkles, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from './ui/scroll-area';
 
 interface TakesListProps {
   takes: Take[];
   onTakeUpdate: (take: Take) => void;
+  onTakeDelete: (id: string) => void;
   glossary: GlossaryEntry[];
   settings: ProjectSettings;
   videoRef: React.RefObject<HTMLVideoElement>;
@@ -31,6 +33,7 @@ interface TakesListProps {
 const TakesList: React.FC<TakesListProps> = ({
   takes,
   onTakeUpdate,
+  onTakeDelete,
   glossary,
   settings,
   videoRef,
@@ -115,20 +118,17 @@ const TakesList: React.FC<TakesListProps> = ({
   }
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader>
-        <CardTitle>Segments</CardTitle>
-      </CardHeader>
-      <CardContent className="p-0 flex-grow overflow-y-auto">
+    <div className="h-full flex flex-col">
+      <ScrollArea className="flex-grow">
         <Table>
           <TableHeader className="sticky top-0 bg-background z-10">
             <TableRow>
-              <TableHead className="w-[110px]">Start Time</TableHead>
-              <TableHead className="w-[110px]">End Time</TableHead>
+              <TableHead className="w-[110px]">Start</TableHead>
+              <TableHead className="w-[110px]">End</TableHead>
               <TableHead className="w-[150px]">Character</TableHead>
               <TableHead>Transcript</TableHead>
               <TableHead>Adaptation</TableHead>
-              <TableHead className="w-[120px]">Actions</TableHead>
+              <TableHead className="w-[120px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -138,13 +138,17 @@ const TakesList: React.FC<TakesListProps> = ({
                   <Input
                     type="text"
                     value={take.time.split('-->')[0].trim()}
-                    onChange={e =>
-                      handleFieldChange(
-                        take.id,
-                        'time',
-                        `${e.target.value} --> ${take.time.split('-->')[1].trim()}`
-                      )
+                    onBlur={(e) =>
+                        handleFieldChange(
+                            take.id,
+                            'time',
+                            `${e.target.value} --> ${take.time.split('-->')[1].trim()}`
+                        )
                     }
+                    onChange={e => {
+                        const newTakes = [...takes];
+                        newTakes[index].time = `${e.target.value} --> ${take.time.split('-->')[1].trim()}`;
+                    }}
                     className="h-8 font-mono text-xs"
                   />
                 </TableCell>
@@ -152,21 +156,25 @@ const TakesList: React.FC<TakesListProps> = ({
                   <Input
                     type="text"
                     value={take.time.split('-->')[1].trim()}
-                    onChange={e =>
+                     onBlur={(e) =>
                       handleFieldChange(
                         take.id,
                         'time',
                          `${take.time.split('-->')[0].trim()} --> ${e.target.value}`
                       )
                     }
+                     onChange={e => {
+                        const newTakes = [...takes];
+                        newTakes[index].time = `${take.time.split('-->')[0].trim()} --> ${e.target.value}`;
+                    }}
                     className="h-8 font-mono text-xs"
                   />
                 </TableCell>
                 <TableCell>
                   <Input
                     type="text"
-                    value={take.character}
-                    onChange={e =>
+                    defaultValue={take.character}
+                    onBlur={e =>
                       handleFieldChange(take.id, 'character', e.target.value)
                     }
                     className="h-8 text-xs"
@@ -175,8 +183,8 @@ const TakesList: React.FC<TakesListProps> = ({
                 <TableCell>
                   <Input
                     type="text"
-                    value={take.original}
-                    onChange={e =>
+                    defaultValue={take.original}
+                    onBlur={e =>
                       handleFieldChange(take.id, 'original', e.target.value)
                     }
                     className="h-8 text-xs"
@@ -185,15 +193,15 @@ const TakesList: React.FC<TakesListProps> = ({
                 <TableCell>
                   <Input
                     type="text"
-                    value={take.translation}
-                    onChange={e =>
+                    defaultValue={take.translation}
+                    onBlur={e =>
                       handleFieldChange(take.id, 'translation', e.target.value)
                     }
                     className="h-8 text-xs"
                   />
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 justify-end">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -215,14 +223,23 @@ const TakesList: React.FC<TakesListProps> = ({
                     >
                       <Play className="h-4 w-4" />
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onTakeDelete(take.id)}
+                      title="Delete Take"
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </CardContent>
-    </Card>
+      </ScrollArea>
+    </div>
   );
 };
 

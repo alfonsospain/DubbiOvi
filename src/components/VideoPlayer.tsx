@@ -44,40 +44,35 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   videoDuration,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const audioInputRef = useRef<HTMLInputElement>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const { toast } = useToast();
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       onFileChange(file);
+      await handleTranscription(file);
     }
   };
 
-  const handleVideoClick = () => {
-    if (!videoUrl) {
-      fileInputRef.current?.click();
-    }
-  };
-  
-  const handleAudioFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  const handleTranscription = async (file: File) => {
     setIsTranscribing(true);
+    toast({
+      title: 'Transcription Started',
+      description:
+        'The audio is being transcribed. This may take a few minutes for longer videos.',
+    });
+
     try {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = async () => {
         const audioDataUri = reader.result as string;
         const result = await transcribeAudio({ audioDataUri });
-        
+
         if (result.segments && result.segments.length > 0) {
           const newTakes: Take[] = result.segments.map((segment, index) => ({
-            id: index + 1,
+            id: crypto.randomUUID(),
             character: `Speaker ${segment.speaker}`,
             time: `${formatTimeForDisplay(segment.start)} - ${formatTimeForDisplay(segment.end)}`,
             startSeconds: segment.start,
@@ -88,23 +83,26 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             status: 'In Progress',
           }));
           onTakesUpdate(newTakes);
-           toast({
+          toast({
             title: 'Transcription Complete',
             description: `Successfully transcribed ${newTakes.length} takes.`,
           });
         } else {
-           toast({
+          toast({
             title: 'Transcription Complete',
             description: 'No speech was detected in the audio.',
           });
           onTakesUpdate([]);
         }
       };
+      reader.onerror = (error) => {
+          throw new Error('Failed to read file for transcription.');
+      }
     } catch (error) {
       console.error('Transcription failed:', error);
       toast({
         title: 'Transcription Failed',
-        description: 'Could not transcribe the audio file.',
+        description: 'Could not transcribe the audio. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -112,10 +110,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  const openAudioFilePicker = () => {
-    audioInputRef.current?.click();
-  }
 
+  const handleVideoClick = () => {
+    if (!videoUrl) {
+      fileInputRef.current?.click();
+    }
+  };
 
   return (
     <Card>
@@ -136,25 +136,40 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               onClick={handleVideoClick}
             >
               {posterUrl && (
-                  <Image
-                    src={posterUrl}
-                    alt={posterHint || 'Video placeholder'}
-                    data-ai-hint={posterHint}
-                    fill
-                    className="object-cover -z-10 opacity-30"
-                  />
+                <Image
+                  src={posterUrl}
+                  alt={posterHint || 'Video placeholder'}
+                  data-ai-hint={posterHint}
+                  fill
+                  className="object-cover -z-10 opacity-30"
+                />
               )}
-              <UploadCloud className="h-16 w-16 text-muted-foreground" />
-              <h3 className="text-xl font-semibold">Upload Video</h3>
-              <p className="text-muted-foreground">
-                Click here to select a video file (MP4, WebM, etc.)
-              </p>
+              {isTranscribing ? (
+                <>
+                  <Loader2 className="h-16 w-16 text-muted-foreground animate-spin" />
+                  <h3 className="text-xl font-semibold">Transcribing...</h3>
+                  <p className="text-muted-foreground">
+                    This may take a moment. Please wait.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <UploadCloud className="h-16 w-16 text-muted-foreground" />
+                  <h3 className="text-xl font-semibold">
+                    Upload Video to Transcribe
+                  </h3>
+                  <p className="text-muted-foreground">
+                    Click here to select a video file (MP4, WebM, etc.)
+                  </p>
+                </>
+              )}
               <Input
                 ref={fileInputRef}
                 type="file"
                 className="hidden"
-                accept="video/*"
+                accept="video/*,audio/*"
                 onChange={handleFileChange}
+                disabled={isTranscribing}
               />
             </div>
           )}
@@ -174,20 +189,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               videoRef.current && (videoRef.current.currentTime = time)
             }
           />
-        </div>
-         <div className="mt-4">
-          <Button onClick={openAudioFilePicker} disabled={isTranscribing}>
-            {isTranscribing ? <Loader2 className="mr-2 animate-spin" /> : null}
-            Transcribe Audio
-          </Button>
-          <Input
-            ref={audioInputRef}
-            type="file"
-            className="hidden"
-            accept="audio/*"
-            onChange={handleAudioFileChange}
-          />
-          <p className="text-xs text-muted-foreground mt-2">Upload an audio file to automatically generate takes.</p>
         </div>
       </CardContent>
     </Card>

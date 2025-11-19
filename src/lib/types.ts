@@ -6,7 +6,7 @@ export interface ProjectSettings {
 }
 
 export interface Take {
-  id: number;
+  id: string; // Use string for UUID
   character: string;
   time: string;
   startSeconds: number;

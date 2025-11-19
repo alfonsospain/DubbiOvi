@@ -14,7 +14,7 @@ const TranscribeAudioInputSchema = z.object({
   audioDataUri: z
     .string()
     .describe(
-      "The audio file to transcribe, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "The audio or video file to transcribe, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
 });
 export type TranscribeAudioInput = z.infer<typeof TranscribeAudioInputSchema>;
@@ -52,16 +52,11 @@ const transcribeAudioFlow = ai.defineFlow(
   async (input) => {
     const { output } = await ai.generate({
       model: 'googleai/gemini-2.5-flash-transcription',
-      prompt: [
-        {
-          media: {
-            url: input.audioDataUri,
-          },
+      prompt: {
+        media: {
+          url: input.audioDataUri,
         },
-        {
-          text: 'Transcribe this audio. Enable speaker diarization. Output in JSON format.',
-        }
-      ],
+      },
       config: {
         responseMimeType: 'application/json',
       },
@@ -71,7 +66,7 @@ const transcribeAudioFlow = ai.defineFlow(
         throw new Error('Invalid transcription response from the model.');
     }
 
-    const typedOutput = output as { results: { alternatives: { transcript: string; words: { startTime: string, endTime: string, word: string, speaker: number }[] }[] }[] };
+    const typedOutput = output as { results: { alternatives: { transcript: string; words: { startTime: string, endTime: string, word: string, speakerTag: number }[] }[] }[] };
 
     const segments: z.infer<typeof SegmentSchema>[] = [];
     if (typedOutput.results && typedOutput.results.length > 0) {
@@ -85,7 +80,7 @@ const transcribeAudioFlow = ai.defineFlow(
                     const startTime = parseFloat(wordInfo.startTime.replace('s', ''));
                     const endTime = parseFloat(wordInfo.endTime.replace('s', ''));
 
-                    if (!currentSegment || currentSegment.speaker !== wordInfo.speaker) {
+                    if (!currentSegment || currentSegment.speaker !== wordInfo.speakerTag) {
                         if (currentSegment) {
                             segments.push(currentSegment);
                         }
@@ -93,7 +88,7 @@ const transcribeAudioFlow = ai.defineFlow(
                             text: wordInfo.word,
                             start: startTime,
                             end: endTime,
-                            speaker: wordInfo.speaker,
+                            speaker: wordInfo.speakerTag,
                         };
                     } else {
                         currentSegment.text += ` ${wordInfo.word}`;

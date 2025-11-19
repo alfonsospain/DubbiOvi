@@ -8,7 +8,7 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatTime(seconds: number): string {
   if (isNaN(seconds) || seconds < 0) {
-    return '00:00.000';
+    return '00:00:00,000';
   }
   const date = new Date(seconds * 1000);
   const hours = date.getUTCHours();
@@ -38,11 +38,24 @@ export function formatTimeForDisplay(seconds: number): string {
   )}.${String(ms).padStart(3, '0')}`;
 }
 
+export function parseTimeToSeconds(time: string): number {
+    const parts = time.split(/[:,.]/);
+    if (parts.length === 4) { // HH:MM:SS.ms
+        const [hours, minutes, seconds, milliseconds] = parts.map(Number);
+        return hours * 3600 + minutes * 60 + seconds + milliseconds / 1000;
+    }
+    if (parts.length === 3) { // MM:SS.ms
+         const [minutes, seconds, milliseconds] = parts.map(Number);
+         return minutes * 60 + seconds + milliseconds / 1000;
+    }
+    return 0;
+}
+
 export function toSRT(takes: Take[]): string {
   return takes
     .map((take, index) => {
-      const startTime = formatTime(take.startSeconds);
-      const endTime = formatTime(take.endSeconds);
+      const startTime = formatTime(take.startSeconds).replace('.', ',');
+      const endTime = formatTime(take.endSeconds).replace('.', ',');
       const text = take.translation || `[${take.character}: No translation]`;
       return `${index + 1}\n${startTime} --> ${endTime}\n${text}\n`;
     })

@@ -20,8 +20,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { toSRT, toVTT } from '@/lib/utils';
-import { HardDriveDownload, HardDriveUpload } from 'lucide-react';
+import { toSRT, toVTT, parseTimeToSeconds } from '@/lib/utils';
+import { HardDriveDownload, HardDriveUpload, FileText } from 'lucide-react';
+import { Input } from './ui/input';
+import { v4 as uuidv4 } from 'uuid';
 
 interface ImportExportPanelProps {
   takes: Take[];
@@ -36,9 +38,11 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
 }) => {
   const { toast } = useToast();
   const [importJson, setImportJson] = useState('');
+  const [importScript, setImportScript] = useState('');
   const [exportFormat, setExportFormat] = useState<ExportFormat>('json');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleImport = () => {
+  const handleJsonImport = () => {
     if (!importJson.trim()) {
       toast({
         title: 'Import Error',
@@ -56,12 +60,12 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
         : null;
 
       if (!takesToImport) {
-        throw new Error('Invalid JSON structure.');
+        throw new Error('Invalid JSON structure. Expected an array of takes.');
       }
       onImport(takesToImport);
       toast({
         title: 'Import Successful',
-        description: `${takesToImport.length} takes have been loaded.`,
+        description: `${takesToImport.length} takes have been loaded from JSON.`,
       });
       setImportJson('');
     } catch (error) {
@@ -74,6 +78,87 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
       console.error(error);
     }
   };
+  
+  const handleScriptImport = (scriptText: string) => {
+    if (!scriptText.trim()) {
+      toast({
+        title: 'Import Error',
+        description: 'Script is empty. Please paste your script text.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    try {
+      // Split script by paragraphs (one or more empty lines)
+      const paragraphs = scriptText.split(/\n\s*\n/).filter(p => p.trim() !== '');
+      let lastEndTime = 0;
+
+      const newTakes: Take[] = paragraphs.map((p, index) => {
+        const text = p.trim();
+        const wordCount = text.split(/\s+/).length;
+        const estimatedDuration = Math.max(2, wordCount / 2.5); // Estimate 2.5 words per second, min 2s
+        
+        const startTime = lastEndTime;
+        const endTime = startTime + estimatedDuration;
+        lastEndTime = endTime;
+
+        const formatTime = (seconds: number) => {
+          const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+          const secs = Math.floor(seconds % 60).toString().padStart(2, '0');
+          const ms = Math.round((seconds % 1) * 1000).toString().padStart(3, '0');
+          return `${mins}:${secs}.${ms}`;
+        }
+        
+        return {
+          id: uuidv4(),
+          character: `Speaker ${ (index % 2) + 1}`,
+          original: text,
+          translation: '',
+          notes: '',
+          status: 'In Progress',
+          startSeconds: startTime,
+          endSeconds: endTime,
+          time: `${formatTime(startTime)} --> ${formatTime(endTime)}`,
+        };
+      });
+
+      if (newTakes.length === 0) {
+          throw new Error('No paragraphs found in the script.');
+      }
+      
+      onImport(newTakes);
+      toast({
+        title: 'Script Import Successful',
+        description: `${newTakes.length} takes have been created from your script.`,
+      });
+      setImportScript('');
+
+    } catch (error) {
+      toast({
+        title: 'Script Import Failed',
+        description: 'Could not process the script.',
+        variant: 'destructive',
+      });
+      console.error(error);
+    }
+  };
+  
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+          const text = e.target?.result as string;
+          handleScriptImport(text);
+      };
+      reader.readAsText(file);
+    }
+    // Reset file input
+    if(fileInputRef.current) {
+        fileInputRef.current.value = '';
+    }
+  };
+
 
   const exportData = useMemo(() => {
     switch (exportFormat) {
@@ -84,7 +169,7 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
       case 'txt':
         return takes
           .map(t => `${t.character}: ${t.translation || t.original}`)
-          .join('\n');
+          .join('\n\n');
       case 'json':
       default:
         return JSON.stringify({ takes }, null, 2);
@@ -92,13 +177,15 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
   }, [takes, exportFormat]);
 
   const handleCopyToClipboard = () => {
-    navigator.clipboard.writeText(exportData).then(() => {
-        toast({ title: "Copied to clipboard!"})
-    }).catch(err => {
-        toast({ title: "Failed to copy", variant: "destructive"})
-    })
-  }
-
+    navigator.clipboard
+      .writeText(exportData)
+      .then(() => {
+        toast({ title: 'Copied to clipboard!' });
+      })
+      .catch(err => {
+        toast({ title: 'Failed to copy', variant: 'destructive' });
+      });
+  };
 
   return (
     <Card>
@@ -109,15 +196,55 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="export">
+        <Tabs defaultValue="import">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="export">
-              <HardDriveDownload className="mr-2 h-4 w-4" /> Export
-            </TabsTrigger>
             <TabsTrigger value="import">
               <HardDriveUpload className="mr-2 h-4 w-4" /> Import
             </TabsTrigger>
+            <TabsTrigger value="export">
+              <HardDriveDownload className="mr-2 h-4 w-4" /> Export
+            </TabsTrigger>
           </TabsList>
+          
+          <TabsContent value="import" className="mt-4">
+             <Tabs defaultValue="script">
+                 <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="script">
+                        <FileText className="mr-2 h-4 w-4" /> From Script
+                    </TabsTrigger>
+                    <TabsTrigger value="json">From JSON</TabsTrigger>
+                 </TabsList>
+                 <TabsContent value="script" className="mt-4 space-y-4">
+                    <Textarea
+                        value={importScript}
+                        onChange={e => setImportScript(e.target.value)}
+                        className="h-48 font-mono text-xs"
+                        placeholder='Paste your plain text script here. Paragraphs will be treated as separate takes.'
+                    />
+                    <div className="flex gap-2">
+                        <Button onClick={() => handleScriptImport(importScript)}>Import from Text</Button>
+                        <Button variant="outline" onClick={() => fileInputRef.current?.click()}>Upload .txt file</Button>
+                    </div>
+                     <Input
+                        ref={fileInputRef}
+                        type="file"
+                        className="hidden"
+                        accept=".txt"
+                        onChange={handleFileChange}
+                      />
+                 </TabsContent>
+                 <TabsContent value="json" className="mt-4 space-y-4">
+                     <Textarea
+                        value={importJson}
+                        onChange={e => setImportJson(e.target.value)}
+                        className="h-48 font-mono text-xs"
+                        placeholder='Paste your JSON data here. For advanced users restoring a project.'
+                      />
+                      <Button onClick={handleJsonImport}>Load Project from JSON</Button>
+                 </TabsContent>
+             </Tabs>
+          </TabsContent>
+
           <TabsContent value="export" className="mt-4">
             <div className="space-y-4">
               <div className="flex items-center gap-4">
@@ -129,10 +256,10 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
                     <SelectValue placeholder="Select format" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="json">JSON</SelectItem>
-                    <SelectItem value="srt">SRT Subtitles</SelectItem>
-                    <SelectItem value="vtt">VTT Subtitles</SelectItem>
-                    <SelectItem value="txt">Plain Text</SelectItem>
+                    <SelectItem value="json">Project (JSON)</SelectItem>
+                    <SelectItem value="srt">Subtitles (SRT)</SelectItem>
+                    <SelectItem value="vtt">Subtitles (VTT)</SelectItem>
+                    <SelectItem value="txt">Script (Text)</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button onClick={handleCopyToClipboard}>Copy to Clipboard</Button>
@@ -143,17 +270,6 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
                 className="h-48 font-mono text-xs"
                 placeholder="Exported data will appear here."
               />
-            </div>
-          </TabsContent>
-          <TabsContent value="import" className="mt-4">
-            <div className="space-y-4">
-              <Textarea
-                value={importJson}
-                onChange={e => setImportJson(e.target.value)}
-                className="h-48 font-mono text-xs"
-                placeholder='Paste your JSON data here. Can be an array of takes or a full project export.'
-              />
-              <Button onClick={handleImport}>Load Takes from JSON</Button>
             </div>
           </TabsContent>
         </Tabs>

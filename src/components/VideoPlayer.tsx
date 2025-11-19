@@ -2,11 +2,8 @@
 
 import React, { useRef } from 'react';
 import Image from 'next/image';
-import type { Take } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { formatTimeForDisplay } from '@/lib/utils';
-import Timeline from './Timeline';
 import { UploadCloud } from 'lucide-react';
 
 interface VideoPlayerProps {
@@ -15,13 +12,8 @@ interface VideoPlayerProps {
   posterUrl?: string;
   posterHint?: string;
   onFileChange: (file: File) => void;
-  takes: Take[];
-  currentIndex: number;
-  setCurrentIndex: (index: number) => void;
   onTimeUpdate: (time: number) => void;
   onDurationChange: (duration: number) => void;
-  currentTime: number;
-  videoDuration: number;
 }
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -30,13 +22,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   posterUrl,
   posterHint,
   onFileChange,
-  takes,
-  currentIndex,
-  setCurrentIndex,
   onTimeUpdate,
   onDurationChange,
-  currentTime,
-  videoDuration,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -54,9 +41,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   return (
-    <Card>
-      <CardContent className="p-4 md:p-6">
-        <div className="relative aspect-video w-full cursor-pointer overflow-hidden rounded-lg bg-slate-900 shadow-lg">
+    <Card className="flex-shrink-0">
+      <CardContent className="p-2">
+        <div className="relative aspect-video w-full cursor-pointer overflow-hidden rounded-md bg-slate-900">
           <video
             ref={videoRef}
             src={videoUrl || undefined}
@@ -83,7 +70,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               <UploadCloud className="h-16 w-16 text-muted-foreground" />
               <h3 className="text-xl font-semibold">Upload Video</h3>
               <p className="text-muted-foreground">
-                Click here to select a video file to sync with your script.
+                Click here to select a video file.
               </p>
               <Input
                 ref={fileInputRef}
@@ -94,22 +81,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               />
             </div>
           )}
-        </div>
-        <div className="mt-4 space-y-2">
-          <div className="flex justify-between text-sm font-mono text-muted-foreground">
-            <span>{formatTimeForDisplay(currentTime)}</span>
-            <span>{formatTimeForDisplay(videoDuration)}</span>
-          </div>
-          <Timeline
-            takes={takes}
-            duration={videoDuration}
-            currentTime={currentTime}
-            currentIndex={currentIndex}
-            onTakeClick={setCurrentIndex}
-            onTimebarClick={time =>
-              videoRef.current && (videoRef.current.currentTime = time)
-            }
-          />
         </div>
       </CardContent>
     </Card>

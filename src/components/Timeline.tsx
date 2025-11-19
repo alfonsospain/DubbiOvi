@@ -9,6 +9,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { formatTimeForDisplay } from '@/lib/utils';
+
 
 interface TimelineProps {
   takes: Take[];
@@ -49,54 +51,60 @@ const Timeline: React.FC<TimelineProps> = ({
 
   return (
     <TooltipProvider>
-      <div
-        className="relative h-12 w-full cursor-pointer rounded-full bg-secondary"
-        onClick={handleTimebarClick}
-      >
-        <div className="relative h-full w-full">
-          {duration > 0 &&
-            takes.map((take, index) => {
-              const left = (take.startSeconds / duration) * 100;
-              const width = ((take.endSeconds - take.startSeconds) / duration) * 100;
-              return (
-                <Tooltip key={take.id} delayDuration={100}>
-                  <TooltipTrigger asChild>
-                    <div
-                      className={cn(
-                        'absolute top-0 h-full rounded-md transition-all duration-150 ease-linear',
-                        getTakeColor(index),
-                        {
-                          'ring-2 ring-offset-2 ring-primary ring-offset-background':
-                            currentIndex === index,
-                          'opacity-70 hover:opacity-100': currentIndex !== index,
-                        }
-                      )}
-                      style={{
-                        left: `${left}%`,
-                        width: `${width}%`,
-                      }}
-                      onClick={e => {
-                        e.stopPropagation();
-                        onTakeClick(index);
-                      }}
-                    />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="font-semibold">
-                      Take {index + 1}: {take.character}
-                    </p>
-                    <p className="text-sm text-muted-foreground">{take.time}</p>
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
+      <div className="w-full bg-muted p-2 rounded-lg">
+        <div className="flex justify-between text-xs font-mono text-muted-foreground mb-2">
+            <span>{formatTimeForDisplay(currentTime)}</span>
+            <span>{formatTimeForDisplay(duration)}</span>
         </div>
-        {duration > 0 && (
-          <div
-            className="absolute top-0 h-full w-1 -translate-x-1/2 rounded-full bg-primary/70 pointer-events-none"
-            style={{ left: `${(currentTime / duration) * 100}%` }}
-          />
-        )}
+        <div
+            className="relative h-10 w-full cursor-pointer rounded-lg bg-secondary/30"
+            onClick={handleTimebarClick}
+        >
+            <div className="relative h-full w-full">
+            {duration > 0 &&
+                takes.map((take, index) => {
+                const left = (take.startSeconds / duration) * 100;
+                const width = ((take.endSeconds - take.startSeconds) / duration) * 100;
+                return (
+                    <Tooltip key={take.id} delayDuration={100}>
+                    <TooltipTrigger asChild>
+                        <div
+                        className={cn(
+                            'absolute top-0 h-full rounded-sm transition-all duration-150 ease-linear',
+                            getTakeColor(index),
+                            {
+                            'ring-2 ring-offset-2 ring-primary ring-offset-background':
+                                currentIndex === index,
+                            'opacity-70 hover:opacity-100': currentIndex !== index,
+                            }
+                        )}
+                        style={{
+                            left: `${left}%`,
+                            width: `${width}%`,
+                        }}
+                        onClick={e => {
+                            e.stopPropagation();
+                            onTakeClick(index);
+                        }}
+                        />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p className="font-semibold">
+                        Take {index + 1}: {take.character}
+                        </p>
+                        <p className="text-sm text-muted-foreground">{take.time}</p>
+                    </TooltipContent>
+                    </Tooltip>
+                );
+                })}
+            </div>
+            {duration > 0 && (
+            <div
+                className="absolute top-0 h-full w-1 -translate-x-1/2 rounded-full bg-primary/70 pointer-events-none"
+                style={{ left: `${(currentTime / duration) * 100}%` }}
+            />
+            )}
+        </div>
       </div>
     </TooltipProvider>
   );

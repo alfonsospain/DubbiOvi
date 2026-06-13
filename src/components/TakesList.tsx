@@ -96,8 +96,8 @@ const TakesList: React.FC<TakesListProps> = ({
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <ScrollArea className="flex-grow">
+    <div className="flex-grow flex flex-col min-h-0">
+      <ScrollArea className="flex-grow min-h-0" type="always">
         <Table>
           <TableHeader className="sticky top-0 bg-background z-10">
             <TableRow>

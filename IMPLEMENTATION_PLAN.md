@@ -115,7 +115,7 @@ This implementation plan details the phases required to release **DubiOvi v1.0**
 
 ---
 
-## Phase 3.5: AI Transcription / ASR MVP (Release Target: v1.1)
+## Phase 3.5: AI Transcription / ASR MVP (Release Target: v1.1) [COMPLETED]
 
 ### Objectives
 - Enable users to automatically transcribe video audio tracks and populate the source-language Takes column using generative AI.

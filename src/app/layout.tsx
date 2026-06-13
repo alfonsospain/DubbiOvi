@@ -8,7 +8,7 @@ import { FirebaseClientProvider } from '@/firebase';
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: 'Dubbing Studio Pro',
+  title: 'DubbiOvi',
   description: 'Translate and synchronize dubbing scripts with AI-powered tools.',
 };
 

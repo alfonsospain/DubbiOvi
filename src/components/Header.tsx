@@ -30,7 +30,7 @@ const Header: React.FC<HeaderProps> = ({
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
       <div className="flex items-center gap-2">
         <Mic className="h-6 w-6 text-primary" />
-        <h1 className="text-lg font-semibold md:text-xl">DUBIOVI</h1>
+        <h1 className="text-lg font-semibold md:text-xl">DUBBIOVI</h1>
       </div>
       <div className="ml-auto flex items-center gap-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">

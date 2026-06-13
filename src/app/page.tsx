@@ -242,16 +242,16 @@ export default function DubbingStudioPro() {
               </PanelResizeHandle>
               <Panel defaultSize={50} minSize={30}>
                 <div className="h-full overflow-hidden pl-2 flex flex-col gap-4">
-                  <Card className="flex-grow h-full flex flex-col">
-                      <CardContent className="p-0 flex-grow">
-                          <Tabs defaultValue="takes" className="h-full flex flex-col">
-                          <TabsList className="m-2">
+                  <Card className="flex-grow h-full flex flex-col min-h-0">
+                      <CardContent className="p-0 flex-grow min-h-0 flex flex-col">
+                          <Tabs defaultValue="takes" className="flex-grow flex flex-col min-h-0">
+                          <TabsList className="m-2 shrink-0">
                               <TabsTrigger value="takes"><FileText className="mr-2 h-4 w-4" /> Takes</TabsTrigger>
                               <TabsTrigger value="import"><FileText className="mr-2 h-4 w-4" /> Import/Export</TabsTrigger>
                               <TabsTrigger value="settings"><Settings className="mr-2 h-4 w-4"/> Settings</TabsTrigger>
                               <TabsTrigger value="glossary"><BookMarked className="mr-2 h-4 w-4"/> Glossary</TabsTrigger>
                           </TabsList>
-                          <TabsContent value="takes" className="flex-grow overflow-hidden">
+                          <TabsContent value="takes" className="flex-grow overflow-hidden min-h-0 flex flex-col">
                               <TakesList
                                   takes={takes}
                                   onTakeUpdate={handleTakeUpdate}
@@ -268,16 +268,21 @@ export default function DubbingStudioPro() {
                                   }}
                                />
                           </TabsContent>
-                          <TabsContent value="import" className="flex-grow overflow-y-auto px-4">
-                              <ImportExportPanel takes={takes} onImport={handleTakesChange} />
+                          <TabsContent value="import" className="flex-grow overflow-y-auto min-h-0 px-4">
+                              <ImportExportPanel 
+                                takes={takes} 
+                                onImport={handleTakesChange} 
+                                videoFile={videoFile}
+                                defaultSourceLang={settings.sourceLang}
+                              />
                           </TabsContent>
-                          <TabsContent value="settings" className="flex-grow overflow-y-auto px-4">
+                          <TabsContent value="settings" className="flex-grow overflow-y-auto min-h-0 px-4">
                               <ProjectSettingsComponent
                               settings={settings}
                               onSettingsChange={handleSettingsChange}
                               />
                           </TabsContent>
-                          <TabsContent value="glossary" className="flex-grow overflow-y-auto px-4">
+                          <TabsContent value="glossary" className="flex-grow overflow-y-auto min-h-0 px-4">
                               <GlossaryPanel glossary={glossary} onGlossaryChange={handleGlossaryChange} />
                           </TabsContent>
                           </Tabs>
@@ -304,6 +309,9 @@ export default function DubbingStudioPro() {
           </Panel>
         </PanelGroup>
       </main>
+      <footer className="w-full py-2 text-center text-[10px] text-muted-foreground border-t bg-card/20 shrink-0">
+        Copyright Alfonso C. Rodríguez Fernández-Peña 2026
+      </footer>
     </div>
   );
 }

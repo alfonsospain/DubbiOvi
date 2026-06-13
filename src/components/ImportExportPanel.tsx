@@ -21,15 +21,20 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { toSRT, toVTT } from '@/lib/utils';
-import { HardDriveDownload, HardDriveUpload, FileText, UploadCloud } from 'lucide-react';
+import { HardDriveDownload, HardDriveUpload, FileText, UploadCloud, Sparkles, Loader2 } from 'lucide-react';
 import { Input } from './ui/input';
 import { v4 as uuidv4 } from 'uuid';
 import mammoth from 'mammoth';
+import { extractAudioTrack } from '@/lib/audio-utils';
+import { getAudioTranscription } from '@/app/actions';
+import { SUPPORTED_LANGUAGES } from '@/lib/data';
 
 
 interface ImportExportPanelProps {
   takes: Take[];
   onImport: (takes: Take[]) => void;
+  videoFile?: File | null;
+  defaultSourceLang?: string;
 }
 
 type ExportFormat = 'json' | 'srt' | 'vtt' | 'txt';
@@ -37,12 +42,93 @@ type ExportFormat = 'json' | 'srt' | 'vtt' | 'txt';
 const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
   takes,
   onImport,
+  videoFile,
+  defaultSourceLang,
 }) => {
   const { toast } = useToast();
   const [importJson, setImportJson] = useState('');
   const [importScript, setImportScript] = useState('');
   const [exportFormat, setExportFormat] = useState<ExportFormat>('json');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcriptionStatus, setTranscriptionStatus] = useState('');
+  const [selectedAsrLang, setSelectedAsrLang] = useState('Auto-Detect');
+
+  const handleAsrTranscription = async () => {
+    if (!videoFile) {
+      toast({
+        title: 'No Video Loaded',
+        description: 'Please load a video file in the player first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsTranscribing(true);
+    setTranscriptionStatus('Extracting audio track from video...');
+
+    try {
+      // Step 1: Decode and downsample video audio to 16kHz mono WAV Blob
+      const audioBlob = await extractAudioTrack(videoFile);
+
+      // Step 2: Package WAV file and target language selection in FormData
+      setTranscriptionStatus('Analyzing speech with Gemini AI...');
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'audio.wav');
+      formData.append('sourceLang', selectedAsrLang);
+
+      // Step 3: Trigger Next.js Server Action
+      const result = await getAudioTranscription(formData);
+
+      if (!result) {
+        throw new Error('Transcription failed. No response from AI service.');
+      }
+
+      if (!result.takes || result.takes.length === 0) {
+        throw new Error('No speech segments detected in this video.');
+      }
+
+      // Step 4: Map Gemini takes to DubbiOvi Take structure
+      const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+        const secs = Math.floor(seconds % 60).toString().padStart(2, '0');
+        const ms = Math.round((seconds % 1) * 1000).toString().padStart(3, '0');
+        return `${mins}:${secs}.${ms}`;
+      };
+
+      const newTakes: Take[] = result.takes.map(t => ({
+        id: uuidv4(),
+        character: t.character,
+        original: t.original,
+        translation: '',
+        notes: '',
+        status: 'In Progress',
+        startSeconds: t.startSeconds,
+        endSeconds: t.endSeconds,
+        time: `${formatTime(t.startSeconds)} --> ${formatTime(t.endSeconds)}`,
+      }));
+
+      // Step 5: Save takes
+      setTranscriptionStatus('Syncing takes to project database...');
+      onImport(newTakes);
+
+      toast({
+        title: 'ASR Transcription Complete',
+        description: `Successfully generated ${newTakes.length} takes. Detected language: ${result.detectedLanguage}`,
+      });
+    } catch (error) {
+      console.error('ASR transcription failed:', error);
+      toast({
+        title: 'Transcription Failed',
+        description: error instanceof Error ? error.message : 'Could not transcribe video. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsTranscribing(false);
+      setTranscriptionStatus('');
+    }
+  };
 
   const handleJsonImport = () => {
     if (!importJson.trim()) {
@@ -230,48 +316,110 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
           
           <TabsContent value="import" className="mt-4">
              <Tabs defaultValue="script">
-                 <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="script">
-                        <FileText className="mr-2 h-4 w-4" /> From Script
-                    </TabsTrigger>
-                    <TabsTrigger value="json">From JSON</TabsTrigger>
-                 </TabsList>
-                 <TabsContent value="script" className="mt-4 space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                        Upload a .txt or .docx file, or paste your script below. Paragraphs will be treated as separate takes.
-                    </p>
-                    <Button variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
-                        <UploadCloud className="mr-2 h-4 w-4" />
-                        Upload .txt or .docx file
-                    </Button>
-                    <Textarea
-                        value={importScript}
-                        onChange={e => setImportScript(e.target.value)}
-                        className="h-32 font-mono text-xs"
-                        placeholder='Or paste your plain text script here...'
-                    />
-                    <Button onClick={() => handleScriptImport(importScript)} disabled={!importScript}>Import from Text</Button>
-                     <Input
-                        ref={fileInputRef}
-                        type="file"
-                        className="hidden"
-                        accept=".txt,.docx"
-                        onChange={handleFileChange}
-                      />
-                 </TabsContent>
-                 <TabsContent value="json" className="mt-4 space-y-4">
+                  <TabsList className="grid w-full grid-cols-3">
+                     <TabsTrigger value="script">
+                         <FileText className="mr-2 h-4 w-4" /> From Script
+                     </TabsTrigger>
+                     <TabsTrigger value="json">From JSON</TabsTrigger>
+                     <TabsTrigger value="asr">
+                         <Sparkles className="mr-2 h-4 w-4" /> AI Transcribe
+                     </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="script" className="mt-4 space-y-4">
                      <p className="text-sm text-muted-foreground">
-                        For advanced users restoring a project from a previous export.
+                         Upload a .txt or .docx file, or paste your script below. Paragraphs will be treated as separate takes.
                      </p>
+                     <Button variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
+                         <UploadCloud className="mr-2 h-4 w-4" />
+                         Upload .txt or .docx file
+                     </Button>
                      <Textarea
-                        value={importJson}
-                        onChange={e => setImportJson(e.target.value)}
-                        className="h-48 font-mono text-xs"
-                        placeholder='Paste your JSON data here...'
-                      />
-                      <Button onClick={handleJsonImport}>Load Project from JSON</Button>
-                 </TabsContent>
-             </Tabs>
+                         value={importScript}
+                         onChange={e => setImportScript(e.target.value)}
+                         className="h-32 font-mono text-xs"
+                         placeholder='Or paste your plain text script here...'
+                     />
+                     <Button onClick={() => handleScriptImport(importScript)} disabled={!importScript}>Import from Text</Button>
+                      <Input
+                         ref={fileInputRef}
+                         type="file"
+                         className="hidden"
+                         accept=".txt,.docx"
+                         onChange={handleFileChange}
+                       />
+                  </TabsContent>
+                  <TabsContent value="json" className="mt-4 space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                         For advanced users restoring a project from a previous export.
+                      </p>
+                      <Textarea
+                         value={importJson}
+                         onChange={e => setImportJson(e.target.value)}
+                         className="h-48 font-mono text-xs"
+                         placeholder='Paste your JSON data here...'
+                       />
+                       <Button onClick={handleJsonImport}>Load Project from JSON</Button>
+                  </TabsContent>
+                  <TabsContent value="asr" className="mt-4 space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                         Extract the audio track from the loaded video and automatically generate timestamped, speaker-separated Takes in the source language using Gemini 2.5 Flash.
+                      </p>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-semibold text-muted-foreground">Spoken Audio Language</label>
+                        <Select
+                          value={selectedAsrLang}
+                          onValueChange={setSelectedAsrLang}
+                          disabled={isTranscribing}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select audio language" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Auto-Detect">Auto-Detect Language (AI)</SelectItem>
+                            {SUPPORTED_LANGUAGES.map(lang => (
+                              <SelectItem key={lang.code} value={lang.code}>
+                                {lang.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      {!videoFile && (
+                        <p className="text-xs text-amber-500 font-medium">
+                          ⚠️ Please load a video file in the Video Player to start transcription.
+                        </p>
+                      )}
+                      
+                      {isTranscribing && (
+                        <div className="flex items-center gap-2 p-3 rounded-md bg-secondary/50 text-xs font-medium text-muted-foreground animate-pulse">
+                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                          <span>{transcriptionStatus}</span>
+                        </div>
+                      )}
+                      
+                      <Button 
+                        onClick={handleAsrTranscription} 
+                        disabled={!videoFile || isTranscribing}
+                        className="w-full"
+                      >
+                        {isTranscribing ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Transcribing...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="mr-2 h-4 w-4" />
+                            Transcribe Video Audio
+                          </>
+                        )}
+                      </Button>
+                      <p className="text-[10px] text-muted-foreground text-center">
+                        Note: Processing may take 30-60 seconds. Video length is limited to 15 minutes.
+                      </p>
+                  </TabsContent>
+              </Tabs>
           </TabsContent>
 
           <TabsContent value="export" className="mt-4">

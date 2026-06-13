@@ -4,6 +4,31 @@ All notable changes to the **Dubbing Studio Pro (DubiOvi)** project will be docu
 
 ---
 
+## [1.2.1-academic] - 2026-06-14
+
+### Added
+- **Academic Branding & Favicon**: Added custom scalable SVG monogram "DO" favicon to browser tab icons and layout metadata, replacing the default favicon.
+- **Academic Attribution Panels (Help Menu)**: Added a "Help" dropdown containing:
+  - **About DubbiOvi**: Displays metadata, DOI link, developer name, affiliation, and a copyable suggested citation block with a **"Copy Citation"** button.
+  - **Help & Contact**: Renders support/collaboration contact details, clickable mailto anchors, and repository references.
+- **Header Layout Simplification**: Removed all profile options (My Account, Settings, Support, Logout) and user-facing cloud indicators (Cloud Backup button, Not Synced status text), focusing the UI purely on the local-first academic workflow.
+
+## [1.2.0-workflow] - 2026-06-14
+
+### Added
+- **Local-First Architecture**: Implemented `.dubbiovi` JSON file save, open, and save-as workflows, embedding format versions, timestamps, and video filename references.
+- **Excel & CSV Exports**: Created `export-utils.ts` and integrated SheetJS (`xlsx` dependency) to compile formatted spreadsheet workbooks and CSV downloads.
+- **Missing Video Reload Warning Banner**: Added dynamic warning alerts to the workspace if a restored project requires a video file reload.
+- **Glossary Persistence**: Verified complete cloud and local file sync for glossary collections.
+- **Menu Bar Navigation Controls**: Implemented Project, Export, and Cloud drop-down menus in the header.
+- **Bidirectional Timeline $\leftrightarrow$ Takes Panel Sync**: Controlled workspace active tab state and autoscroll/focus handlers. Clicking a timeline segment highlights the take, scrolls it into view, and focuses the Source Text textarea.
+- **Timeline Auto-Play**: Double-clicking a segment seeks the video to the segment start and starts playback automatically.
+- **Workflow Status System**: Added support for `'Pending'`, `'Reviewed'`, and `'Locked'` statuses.
+- **Locked Takes Enforcement**: Enabled `readOnly` styling on text inputs when a take is Locked, disabling editing, deletion, and translation suggestions while still permitting text selection, copying, and navigation.
+- **Progress Tracking & Dashboard**: Calculated metrics for Translated, Reviewed, and Locked takes, with completion % calculated as `(Translated / Total) * 100`. Renders a multi-colored segmented progress bar showing status proportions at a glance.
+- **Dynamic Timeline Color Coding**: Styled timeline segments by status: Pending (Gray), Reviewed (Blue), Locked (Green).
+- **Enhanced Hover Tooltips**: Added Take number, Start/End times, and Status styling to segment tooltips.
+
 ## [1.1.1-ui-fixes] - 2026-06-13
 
 ### Added

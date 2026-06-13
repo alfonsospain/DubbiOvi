@@ -18,6 +18,7 @@ interface TimelineProps {
   currentTime: number;
   currentIndex: number;
   onTakeClick: (index: number) => void;
+  onTakeDoubleClick?: (index: number) => void;
   onTimebarClick: (time: number) => void;
 }
 
@@ -27,6 +28,7 @@ const Timeline: React.FC<TimelineProps> = ({
   currentTime,
   currentIndex,
   onTakeClick,
+  onTakeDoubleClick,
   onTimebarClick,
 }) => {
   const handleTimebarClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -38,15 +40,16 @@ const Timeline: React.FC<TimelineProps> = ({
     }
   };
 
-  const getTakeColor = (index: number) => {
-    const colors = [
-      'bg-blue-500',
-      'bg-green-500',
-      'bg-yellow-500',
-      'bg-purple-500',
-      'bg-pink-500',
-    ];
-    return colors[index % colors.length];
+  const getTakeColor = (status: 'Pending' | 'Reviewed' | 'Locked') => {
+    switch (status) {
+      case 'Locked':
+        return 'bg-green-500';
+      case 'Reviewed':
+        return 'bg-blue-500';
+      case 'Pending':
+      default:
+        return 'bg-zinc-500';
+    }
   };
 
   return (
@@ -71,7 +74,7 @@ const Timeline: React.FC<TimelineProps> = ({
                         <div
                         className={cn(
                             'absolute top-0 h-full rounded-sm transition-all duration-150 ease-linear',
-                            getTakeColor(index),
+                            getTakeColor(take.status),
                             {
                             'ring-2 ring-offset-2 ring-primary ring-offset-background':
                                 currentIndex === index,
@@ -86,13 +89,28 @@ const Timeline: React.FC<TimelineProps> = ({
                             e.stopPropagation();
                             onTakeClick(index);
                         }}
+                        onDoubleClick={e => {
+                            e.stopPropagation();
+                            if (onTakeDoubleClick) {
+                                onTakeDoubleClick(index);
+                            }
+                        }}
                         />
                     </TooltipTrigger>
                     <TooltipContent>
-                        <p className="font-semibold">
-                        Take {index + 1}: {take.character}
+                        <p className="font-semibold text-xs">
+                          Take {index + 1}: {take.character}
                         </p>
-                        <p className="text-sm text-muted-foreground">{take.time}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Start: {formatTimeForDisplay(take.startSeconds)} | End: {formatTimeForDisplay(take.endSeconds)}
+                        </p>
+                        <p className={cn("text-[11px] font-semibold mt-1",
+                          take.status === 'Locked' && "text-green-400",
+                          take.status === 'Reviewed' && "text-blue-400",
+                          take.status === 'Pending' && "text-muted-foreground"
+                        )}>
+                          Status: {take.status}
+                        </p>
                     </TooltipContent>
                     </Tooltip>
                 );

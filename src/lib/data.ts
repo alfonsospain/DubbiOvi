@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 
 export const DEFAULT_PROJECT_SETTINGS: ProjectSettings = {
+  projectName: 'Courtroom Drama - The Verdict',
   title: 'Courtroom Drama - The Verdict',
   sourceLang: 'EN',
   targetLang: 'ES',
@@ -20,7 +21,7 @@ export const DEFAULT_TAKES: Take[] = [
       'Members of the jury, you must now retire to consider your verdict.',
     translation: '',
     notes: '',
-    status: 'In Progress',
+    status: 'Pending',
   },
   {
     id: uuidv4(),
@@ -32,7 +33,7 @@ export const DEFAULT_TAKES: Take[] = [
       'Remember that doubt, any reasonable doubt, must always benefit the defendant.',
     translation: '',
     notes: '',
-    status: 'In Progress',
+    status: 'Pending',
   },
   {
     id: uuidv4(),
@@ -43,7 +44,7 @@ export const DEFAULT_TAKES: Take[] = [
     original: 'The evidence you have heard is clear, consistent and overwhelming.',
     translation: '',
     notes: '',
-    status: 'In Progress',
+    status: 'Pending',
   },
   {
     id: uuidv4(),
@@ -54,7 +55,7 @@ export const DEFAULT_TAKES: Take[] = [
     original: 'The court is adjourned until the jury reaches a decision.',
     translation: '',
     notes: '',
-    status: 'In Progress',
+    status: 'Pending',
   },
 ];
 

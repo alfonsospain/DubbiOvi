@@ -26,11 +26,19 @@ import TakesList from '@/components/TakesList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileText, Settings, BookMarked, GripHorizontal } from 'lucide-react';
 import Timeline from '@/components/Timeline';
+import { exportToExcel, exportToCSV } from '@/lib/export-utils';
 import {
   Panel,
   PanelGroup,
   PanelResizeHandle,
 } from "react-resizable-panels";
+
+const normalizeStatus = (status: string | undefined): 'Pending' | 'Reviewed' | 'Locked' => {
+  if (status === 'Approved') return 'Reviewed';
+  if (status === 'Translated' || status === 'In Progress') return 'Pending';
+  if (status === 'Pending' || status === 'Reviewed' || status === 'Locked') return status;
+  return 'Pending';
+};
 
 export default function DubbingStudioPro() {
   const db = useFirestore();
@@ -42,12 +50,14 @@ export default function DubbingStudioPro() {
   const [glossary, setGlossary] = useState<GlossaryEntry[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoReloadHint, setVideoReloadHint] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const [activeTab, setActiveTab] = useState('takes');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const projectId = 'main-project'; // Using a static project ID for now
@@ -76,7 +86,14 @@ export default function DubbingStudioPro() {
     // Subscribe to takes
     const unsubscribeTakes = onSnapshot(takesColRef, snapshot => {
       const serverTakes = snapshot.docs
-        .map(d => ({ ...(d.data() as Take), id: d.id }))
+        .map(d => {
+          const data = d.data();
+          return {
+            ...(data as Take),
+            id: d.id,
+            status: normalizeStatus((data as any).status),
+          };
+        })
         .sort((a, b) => a.startSeconds - b.startSeconds);
       setTakes(serverTakes);
     });
@@ -131,12 +148,15 @@ export default function DubbingStudioPro() {
   const handleTakesChange = async (newTakes: Take[]) => {
     if (!db) return;
     
-    const newTakesWithIds = newTakes.map(t => ({ ...t, id: t.id || uuidv4() }));
+    const newTakesWithIds = newTakes.map(t => ({
+      ...t,
+      id: t.id || uuidv4(),
+      status: normalizeStatus((t as any).status),
+    }));
     setTakes(newTakesWithIds);
 
     const batch = writeBatch(db);
     const takesColRef = collection(db, 'projects', projectId, 'takes');
-
 
     
     // Delete takes that are no longer present
@@ -166,6 +186,21 @@ export default function DubbingStudioPro() {
     }
   };
 
+  const handleTimelineTakeClick = (index: number) => {
+    setCurrentIndex(index);
+    setActiveTab('takes');
+  };
+
+  const handleTimelineTakeDoubleClick = (index: number) => {
+    setCurrentIndex(index);
+    setActiveTab('takes');
+    const take = takes[index];
+    if (take && videoRef.current) {
+      videoRef.current.currentTime = take.startSeconds;
+      videoRef.current.play().catch(err => console.error("Auto-play failed:", err));
+    }
+  };
+
   const handleVideoFileChange = (file: File) => {
     if (videoUrl) {
       URL.revokeObjectURL(videoUrl);
@@ -173,6 +208,7 @@ export default function DubbingStudioPro() {
     setVideoFile(file);
     const url = URL.createObjectURL(file);
     setVideoUrl(url);
+    setVideoReloadHint(null);
   };
   
   const handleGlossaryChange = async (newGlossary: GlossaryEntry[]) => {
@@ -201,6 +237,238 @@ export default function DubbingStudioPro() {
      await batch.commit();
      setGlossary(newGlossary);
   };
+
+  const handleNewProject = async () => {
+    setTakes([]);
+    setGlossary([]);
+    setSettings(DEFAULT_PROJECT_SETTINGS);
+    setCurrentIndex(0);
+    setVideoFile(null);
+    setVideoUrl(null);
+    setVideoDuration(0);
+    setCurrentTime(0);
+    setVideoReloadHint(null);
+
+    if (db) {
+      const batch = writeBatch(db);
+      const projectDocRef = doc(db, 'projects', projectId);
+      batch.set(projectDocRef, DEFAULT_PROJECT_SETTINGS);
+
+      const takesColRef = collection(db, 'projects', projectId, 'takes');
+      takes.forEach(t => {
+        batch.delete(doc(takesColRef, t.id));
+      });
+
+      const glossaryColRef = collection(db, 'projects', projectId, 'glossary');
+      glossary.forEach(g => {
+        batch.delete(doc(glossaryColRef, g.id));
+      });
+
+      await batch.commit();
+    }
+
+    toast({
+      title: 'New Project Created',
+      description: 'Workspace has been reset.',
+    });
+  };
+
+  const handleOpenProject = async (projectData: any) => {
+    try {
+      // 1. Restore settings with backwards compatibility
+      const loadedSettings: ProjectSettings = {
+        projectName: projectData.projectName || projectData.settings?.projectName || projectData.title || projectData.settings?.title || 'Untitled Project',
+        sourceLang: projectData.settings?.sourceLang || projectData.sourceLang || 'EN',
+        targetLang: projectData.settings?.targetLang || projectData.targetLang || 'ES',
+        translator: projectData.settings?.translator || projectData.translator || '',
+      };
+      loadedSettings.title = loadedSettings.projectName;
+
+      // 2. Restore takes with standard defaults
+      const loadedTakes: Take[] = (projectData.takes || []).map((t: any) => ({
+        id: t.id || uuidv4(),
+        character: t.character || 'Speaker',
+        time: t.time || '00:00.000 - 00:00.000',
+        startSeconds: Number(t.startSeconds) || 0,
+        endSeconds: Number(t.endSeconds) || 0,
+        original: t.original || '',
+        translation: t.translation || '',
+        notes: t.notes || '',
+        status: normalizeStatus(t.status)
+      }));
+
+      // 3. Restore glossary
+      const loadedGlossary: GlossaryEntry[] = (projectData.glossary || []).map((g: any) => ({
+        id: g.id || uuidv4(),
+        sourceTerm: g.sourceTerm || '',
+        targetTerm: g.targetTerm || '',
+        notes: g.notes || ''
+      }));
+
+      // 4. Update local state
+      setSettings(loadedSettings);
+      setTakes(loadedTakes);
+      setGlossary(loadedGlossary);
+      setCurrentIndex(0);
+
+      // 5. Update Firestore
+      if (db) {
+        const batch = writeBatch(db);
+        const projectDocRef = doc(db, 'projects', projectId);
+        batch.set(projectDocRef, loadedSettings);
+
+        const takesColRef = collection(db, 'projects', projectId, 'takes');
+        // Delete old takes
+        takes.forEach(t => {
+          batch.delete(doc(takesColRef, t.id));
+        });
+        // Set new takes
+        loadedTakes.forEach(t => {
+          batch.set(doc(takesColRef, t.id), t);
+        });
+
+        const glossaryColRef = collection(db, 'projects', projectId, 'glossary');
+        // Delete old glossary
+        glossary.forEach(g => {
+          batch.delete(doc(glossaryColRef, g.id));
+        });
+        // Set new glossary
+        loadedGlossary.forEach(g => {
+          batch.set(doc(glossaryColRef, g.id), g);
+        });
+
+        await batch.commit();
+      }
+
+      // 6. Handle video filename reference check
+      const fileVideoName = projectData.videoFileName || null;
+      if (fileVideoName) {
+        if (!videoFile || videoFile.name !== fileVideoName) {
+          setVideoReloadHint(fileVideoName);
+          toast({
+            title: 'Video File Required',
+            description: `⚠️ Please reload video file: ${fileVideoName}`,
+            duration: 8000,
+          });
+        } else {
+          setVideoReloadHint(null);
+        }
+      } else {
+        setVideoReloadHint(null);
+      }
+
+      toast({
+        title: 'Project Opened Successfully',
+        description: `Restored project: "${loadedSettings.projectName}"`,
+      });
+    } catch (error) {
+      console.error('Failed to open project file', error);
+      toast({
+        title: 'Open Project Failed',
+        description: 'Invalid or corrupt project file format.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSaveProject = () => {
+    const pName = settings.projectName || settings.title || 'Untitled Project';
+    const projectData = {
+      formatVersion: '1.2',
+      createdAt: new Date().toISOString(),
+      projectName: pName,
+      videoFileName: videoFile ? videoFile.name : null,
+      settings,
+      takes,
+      glossary,
+    };
+
+    const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${pName}.dubbiovi`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: 'Project Saved',
+      description: `Successfully exported "${pName}.dubbiovi"`,
+    });
+  };
+
+  const handleSaveProjectAs = () => {
+    const currentName = settings.projectName || settings.title || 'Untitled Project';
+    const newName = window.prompt('Enter new project name:', currentName);
+    if (newName === null) return;
+    const trimmedName = newName.trim();
+    if (!trimmedName) {
+      toast({
+        title: 'Invalid Name',
+        description: 'Project name cannot be empty.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const updatedSettings = {
+      ...settings,
+      projectName: trimmedName,
+      title: trimmedName,
+    };
+    setSettings(updatedSettings);
+
+    if (db) {
+      setDoc(doc(db, 'projects', projectId), updatedSettings);
+    }
+
+    const projectData = {
+      formatVersion: '1.2',
+      createdAt: new Date().toISOString(),
+      projectName: trimmedName,
+      videoFileName: videoFile ? videoFile.name : null,
+      settings: updatedSettings,
+      takes,
+      glossary,
+    };
+
+    const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${trimmedName}.dubbiovi`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: 'Project Saved As',
+      description: `Successfully exported "${trimmedName}.dubbiovi"`,
+    });
+  };
+
+  const handleExportExcel = () => {
+    const name = settings.projectName || settings.title || 'Project';
+    exportToExcel(takes, name);
+    toast({
+      title: 'Excel Export Complete',
+      description: `Downloaded "${name}.xlsx"`,
+    });
+  };
+
+  const handleExportCSV = () => {
+    const name = settings.projectName || settings.title || 'Project';
+    exportToCSV(takes, name);
+    toast({
+      title: 'CSV Export Complete',
+      description: `Downloaded "${name}.csv"`,
+    });
+  };
   
   const handleTakeDelete = async (id: string) => {
     if (!db) return;
@@ -215,10 +483,16 @@ export default function DubbingStudioPro() {
   return (
     <div className="flex h-screen w-full flex-col dark bg-background">
       <Header
-        projectTitle={settings.title}
+        projectName={settings.projectName || settings.title || 'Untitled Project'}
         onSave={saveToCloud}
         isSaving={isSaving}
         lastSaved={lastSaved}
+        onNewProject={handleNewProject}
+        onOpenProject={handleOpenProject}
+        onSaveProject={handleSaveProject}
+        onSaveProjectAs={handleSaveProjectAs}
+        onExportExcel={handleExportExcel}
+        onExportCSV={handleExportCSV}
       />
       <main className="flex-1 flex flex-col p-4 md:p-6 overflow-hidden">
         <PanelGroup direction="vertical" className="flex-grow">
@@ -226,6 +500,11 @@ export default function DubbingStudioPro() {
             <PanelGroup direction="horizontal">
               <Panel defaultSize={50} minSize={30}>
                  <div className="flex flex-col gap-4 h-full overflow-hidden pr-2">
+                    {videoReloadHint && (
+                      <div className="bg-amber-500/20 border border-amber-500/30 text-amber-200 text-xs px-3 py-2 rounded-md flex items-center gap-2 mb-2 animate-pulse shrink-0">
+                        <span>⚠️ Please reload video file: <strong>{videoReloadHint}</strong></span>
+                      </div>
+                    )}
                     <VideoPlayer
                         videoRef={videoRef}
                         videoUrl={videoUrl}
@@ -244,7 +523,7 @@ export default function DubbingStudioPro() {
                 <div className="h-full overflow-hidden pl-2 flex flex-col gap-4">
                   <Card className="flex-grow h-full flex flex-col min-h-0">
                       <CardContent className="p-0 flex-grow min-h-0 flex flex-col">
-                          <Tabs defaultValue="takes" className="flex-grow flex flex-col min-h-0">
+                          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col min-h-0">
                           <TabsList className="m-2 shrink-0">
                               <TabsTrigger value="takes"><FileText className="mr-2 h-4 w-4" /> Takes</TabsTrigger>
                               <TabsTrigger value="import"><FileText className="mr-2 h-4 w-4" /> Import/Export</TabsTrigger>
@@ -260,6 +539,7 @@ export default function DubbingStudioPro() {
                                   settings={settings}
                                   videoRef={videoRef}
                                   currentTime={currentTime}
+                                  selectedTakeIndex={currentIndex}
                                   onTakeSelect={(index) => {
                                       setCurrentIndex(index);
                                       if (videoRef.current) {
@@ -301,7 +581,8 @@ export default function DubbingStudioPro() {
                 duration={videoDuration}
                 currentTime={currentTime}
                 currentIndex={currentIndex}
-                onTakeClick={setCurrentIndex}
+                onTakeClick={handleTimelineTakeClick}
+                onTakeDoubleClick={handleTimelineTakeDoubleClick}
                 onTimebarClick={time =>
                   videoRef.current && (videoRef.current.currentTime = time)
                 }

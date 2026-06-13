@@ -8,6 +8,7 @@ import {
   collection,
   onSnapshot,
   writeBatch,
+  deleteDoc,
 } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import type { ProjectSettings, Take, GlossaryEntry } from '@/lib/types';
@@ -136,9 +137,7 @@ export default function DubbingStudioPro() {
     const batch = writeBatch(db);
     const takesColRef = collection(db, 'projects', projectId, 'takes');
 
-    // Efficiently sync takes
-    const existingTakesSnapshot = await getDoc(collection(db, 'projects', projectId, 'takes') as any);
-    const existingIds = new Set(takes.map(t => t.id));
+
     
     // Delete takes that are no longer present
     takes.forEach(take => {

@@ -32,6 +32,9 @@ import {
   exportToWordSource,
   exportToWordTarget,
   exportToWordBoth,
+  exportGlossaryCSV,
+  exportGlossaryXLSX,
+  exportGlossaryJSON,
 } from '@/lib/export-utils';
 import { formatTimeForDisplay } from '@/lib/utils';
 import {
@@ -39,6 +42,13 @@ import {
   PanelGroup,
   PanelResizeHandle,
 } from "react-resizable-panels";
+
+interface HistoryState {
+  takes: Take[];
+  glossary: GlossaryEntry[];
+  settings: ProjectSettings;
+  actionName: string;
+}
 
 const normalizeStatus = (status: string | undefined): 'Pending' | 'Reviewed' | 'Locked' => {
   if (status === 'Approved') return 'Reviewed';
@@ -55,6 +65,164 @@ export default function DubbingStudioPro() {
   );
   const [takes, setTakes] = useState<Take[]>([]);
   const [glossary, setGlossary] = useState<GlossaryEntry[]>([]);
+  
+  const [past, setPast] = useState<HistoryState[]>([]);
+  const [future, setFuture] = useState<HistoryState[]>([]);
+
+  const pushToHistory = useCallback((actionName: string, customTakes?: Take[], customGlossary?: GlossaryEntry[], customSettings?: ProjectSettings) => {
+    setPast(prevPast => {
+      const newState: HistoryState = {
+        takes: JSON.parse(JSON.stringify(customTakes || takes)),
+        glossary: JSON.parse(JSON.stringify(customGlossary || glossary)),
+        settings: JSON.parse(JSON.stringify(customSettings || settings)),
+        actionName,
+      };
+      const newPast = [...prevPast, newState];
+      if (newPast.length > 20) {
+        newPast.shift();
+      }
+      return newPast;
+    });
+    setFuture([]);
+  }, [takes, glossary, settings]);
+
+  const handleUndo = useCallback(async () => {
+    if (past.length === 0 || !db) return;
+
+    const previousState = past[past.length - 1];
+    const newPast = past.slice(0, -1);
+
+    const currentState: HistoryState = {
+      takes: JSON.parse(JSON.stringify(takes)),
+      glossary: JSON.parse(JSON.stringify(glossary)),
+      settings: JSON.parse(JSON.stringify(settings)),
+      actionName: previousState.actionName,
+    };
+
+    setFuture(prevFuture => [...prevFuture, currentState]);
+    setPast(newPast);
+
+    setTakes(previousState.takes);
+    setGlossary(previousState.glossary);
+    setSettings(previousState.settings);
+
+    try {
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'projects', projectId), previousState.settings);
+
+      const takesColRef = collection(db, 'projects', projectId, 'takes');
+      takes.forEach(t => {
+        batch.delete(doc(takesColRef, t.id));
+      });
+      previousState.takes.forEach(t => {
+        batch.set(doc(takesColRef, t.id), t);
+      });
+
+      const glossaryColRef = collection(db, 'projects', projectId, 'glossary');
+      glossary.forEach(g => {
+        batch.delete(doc(glossaryColRef, g.id));
+      });
+      previousState.glossary.forEach(g => {
+        batch.set(doc(glossaryColRef, g.id), {
+          sourceTerm: g.sourceTerm,
+          targetTerm: g.targetTerm,
+          notes: g.notes
+        });
+      });
+
+      await batch.commit();
+
+      toast({
+        title: `Undo: ${previousState.actionName}`,
+        description: 'Previous state has been restored.',
+      });
+    } catch (err) {
+      console.error("Undo database sync failed", err);
+      toast({
+        title: 'Undo Error',
+        description: 'Failed to synchronize undo with database.',
+        variant: 'destructive',
+      });
+    }
+  }, [past, takes, glossary, settings, db, toast]);
+
+  const handleRedo = useCallback(async () => {
+    if (future.length === 0 || !db) return;
+
+    const nextState = future[future.length - 1];
+    const newFuture = future.slice(0, -1);
+
+    const currentState: HistoryState = {
+      takes: JSON.parse(JSON.stringify(takes)),
+      glossary: JSON.parse(JSON.stringify(glossary)),
+      settings: JSON.parse(JSON.stringify(settings)),
+      actionName: nextState.actionName,
+    };
+
+    setPast(prevPast => [...prevPast, currentState]);
+    setFuture(newFuture);
+
+    setTakes(nextState.takes);
+    setGlossary(nextState.glossary);
+    setSettings(nextState.settings);
+
+    try {
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'projects', projectId), nextState.settings);
+
+      const takesColRef = collection(db, 'projects', projectId, 'takes');
+      takes.forEach(t => {
+        batch.delete(doc(takesColRef, t.id));
+      });
+      nextState.takes.forEach(t => {
+        batch.set(doc(takesColRef, t.id), t);
+      });
+
+      const glossaryColRef = collection(db, 'projects', projectId, 'glossary');
+      glossary.forEach(g => {
+        batch.delete(doc(glossaryColRef, g.id));
+      });
+      nextState.glossary.forEach(g => {
+        batch.set(doc(glossaryColRef, g.id), {
+          sourceTerm: g.sourceTerm,
+          targetTerm: g.targetTerm,
+          notes: g.notes
+        });
+      });
+
+      await batch.commit();
+
+      toast({
+        title: `Redo: ${nextState.actionName}`,
+        description: 'State has been updated.',
+      });
+    } catch (err) {
+      console.error("Redo database sync failed", err);
+      toast({
+        title: 'Redo Error',
+        description: 'Failed to synchronize redo with database.',
+        variant: 'destructive',
+      });
+    }
+  }, [future, takes, glossary, settings, db, toast]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+      if (isCmdOrCtrl && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo]);
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoReloadHint, setVideoReloadHint] = useState<string | null>(null);
@@ -145,6 +313,7 @@ export default function DubbingStudioPro() {
   }, [db, settings, toast]);
 
   const handleSettingsChange = (newSettings: ProjectSettings) => {
+    pushToHistory("Project Settings Update");
     setSettings(newSettings);
     // Persist immediately
     if (db) {
@@ -155,6 +324,7 @@ export default function DubbingStudioPro() {
   const handleTakesChange = async (newTakes: Take[]) => {
     if (!db) return;
     
+    pushToHistory("Import Takes");
     const newTakesWithIds = newTakes.map(t => ({
       ...t,
       id: t.id || uuidv4(),
@@ -187,6 +357,19 @@ export default function DubbingStudioPro() {
   };
 
   const handleTakeUpdate = (updatedTake: Take) => {
+    const oldTake = takes.find(t => t.id === updatedTake.id);
+    if (oldTake) {
+      const textChanged = oldTake.original !== updatedTake.original ||
+                          oldTake.translation !== updatedTake.translation;
+      const statusChanged = oldTake.status !== updatedTake.status;
+
+      if (textChanged) {
+        pushToHistory("Text Edit");
+      } else if (statusChanged) {
+        pushToHistory("Status Change");
+      }
+    }
+
     if (db) {
       const takeRef = doc(db, 'projects', projectId, 'takes', updatedTake.id);
       setDoc(takeRef, updatedTake, { merge: true });
@@ -220,6 +403,7 @@ export default function DubbingStudioPro() {
   
   const handleGlossaryChange = async (newGlossary: GlossaryEntry[]) => {
      if (!db) return;
+     pushToHistory("Glossary Edit");
      const batch = writeBatch(db);
      const glossaryColRef = collection(db, 'projects', projectId, 'glossary');
      
@@ -504,8 +688,37 @@ export default function DubbingStudioPro() {
     });
   };
 
+  const handleExportGlossaryCSV = () => {
+    const name = settings.projectName || settings.title || 'Project';
+    exportGlossaryCSV(glossary, name);
+    toast({
+      title: 'Glossary Export Complete',
+      description: `Downloaded "${name}_Glossary.csv"`,
+    });
+  };
+
+  const handleExportGlossaryXLSX = () => {
+    const name = settings.projectName || settings.title || 'Project';
+    exportGlossaryXLSX(glossary, name);
+    toast({
+      title: 'Glossary Export Complete',
+      description: `Downloaded "${name}_Glossary.xlsx"`,
+    });
+  };
+
+  const handleExportGlossaryJSON = () => {
+    const name = settings.projectName || settings.title || 'Project';
+    exportGlossaryJSON(glossary, name);
+    toast({
+      title: 'Glossary Export Complete',
+      description: `Downloaded "${name}_Glossary.json"`,
+    });
+  };
+
   const handleTakeMerge = async (index: number, direction: 'prev' | 'next') => {
     if (!db) return;
+
+    pushToHistory("Merge Takes");
 
     const targetIndex = direction === 'prev' ? index - 1 : index;
     const nextIndex = targetIndex + 1;
@@ -589,6 +802,8 @@ export default function DubbingStudioPro() {
     target2: string
   ) => {
     if (!db) return;
+
+    pushToHistory("Split Take");
 
     const t = takes[index];
     if (!t) return;
@@ -689,6 +904,7 @@ export default function DubbingStudioPro() {
   
   const handleTakeDelete = async (id: string) => {
     if (!db) return;
+    pushToHistory("Delete Take");
     const takeRef = doc(db, 'projects', projectId, 'takes', id);
     await deleteDoc(takeRef);
   };
@@ -713,6 +929,9 @@ export default function DubbingStudioPro() {
         onExportWordSource={handleExportWordSource}
         onExportWordTarget={handleExportWordTarget}
         onExportWordBoth={handleExportWordBoth}
+        onExportGlossaryCSV={handleExportGlossaryCSV}
+        onExportGlossaryXLSX={handleExportGlossaryXLSX}
+        onExportGlossaryJSON={handleExportGlossaryJSON}
       />
       <main className="flex-1 flex flex-col p-4 md:p-6 overflow-hidden">
         <PanelGroup direction="vertical" className="flex-grow">

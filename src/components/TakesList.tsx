@@ -69,6 +69,217 @@ interface TakesListProps {
   ) => void;
 }
 
+interface TakeRowProps {
+  take: Take;
+  index: number;
+  selectedTakeIndex?: number;
+  currentTime: number;
+  isPrevLocked: boolean;
+  isNextLocked: boolean;
+  isTakeActive: (take: Take) => boolean;
+  onTakeSelect: (index: number) => void;
+  onTakeDelete: (id: string) => void;
+  suggestTranslation: (take: Take) => void;
+  isSuggesting: boolean;
+  handleFieldChange: (id: string, field: keyof Take, value: string) => void;
+  openSplitDialog: (index: number) => void;
+  onTakeMerge: (index: number, direction: 'prev' | 'next') => void;
+  rowRef: (el: HTMLTableRowElement | null) => void;
+  sourceTextRef: (el: HTMLTextAreaElement | null) => void;
+  takesCount: number;
+}
+
+const TakeRow: React.FC<TakeRowProps> = ({
+  take,
+  index,
+  selectedTakeIndex,
+  currentTime,
+  isPrevLocked,
+  isNextLocked,
+  isTakeActive,
+  onTakeSelect,
+  onTakeDelete,
+  suggestTranslation,
+  isSuggesting,
+  handleFieldChange,
+  openSplitDialog,
+  onTakeMerge,
+  rowRef,
+  sourceTextRef,
+  takesCount,
+}) => {
+  const isLocked = take.status === 'Locked';
+  const [localOriginal, setLocalOriginal] = useState(take.original || '');
+  const [localTranslation, setLocalTranslation] = useState(take.translation || '');
+
+  // Keep state synced with outer prop updates (e.g. merge, split, undo, ASR)
+  useEffect(() => {
+    setLocalOriginal(take.original || '');
+  }, [take.original]);
+
+  useEffect(() => {
+    setLocalTranslation(take.translation || '');
+  }, [take.translation]);
+
+  const handleOriginalBlur = () => {
+    if (localOriginal !== take.original) {
+      handleFieldChange(take.id, 'original', localOriginal);
+    }
+  };
+
+  const handleTranslationBlur = () => {
+    if (localTranslation !== take.translation) {
+      handleFieldChange(take.id, 'translation', localTranslation);
+    }
+  };
+
+  return (
+    <TableRow
+      ref={rowRef}
+      className={cn(
+        isTakeActive(take) && 'bg-primary/10',
+        selectedTakeIndex === index && 'bg-muted/50 border-primary'
+      )}
+      onClick={() => onTakeSelect(index)}
+    >
+      <TableCell className="align-top pt-3">
+        <Select
+          value={take.status}
+          onValueChange={value => handleFieldChange(take.id, 'status', value)}
+        >
+          <SelectTrigger
+            className={cn(
+              'h-8 text-xs font-medium w-full flex items-center justify-between gap-1',
+              take.status === 'Pending' &&
+                'border-muted-foreground/30 text-muted-foreground bg-secondary/10',
+              take.status === 'Reviewed' && 'border-blue-500/50 text-blue-400 bg-blue-500/5',
+              take.status === 'Locked' && 'border-green-500/50 text-green-400 bg-green-500/5'
+            )}
+          >
+            <div className="flex items-center gap-1.5 overflow-hidden">
+              {take.status === 'Locked' ? (
+                <Lock className="h-3.5 w-3.5 shrink-0 text-green-400" />
+              ) : take.status === 'Reviewed' ? (
+                <CheckCircle className="h-3.5 w-3.5 shrink-0 text-blue-400" />
+              ) : (
+                <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              )}
+              <SelectValue placeholder="Status" />
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Pending">
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" /> Pending
+              </span>
+            </SelectItem>
+            <SelectItem value="Reviewed">
+              <span className="flex items-center gap-1.5 text-xs text-blue-400">
+                <CheckCircle className="h-3.5 w-3.5" /> Reviewed
+              </span>
+            </SelectItem>
+            <SelectItem value="Locked">
+              <span className="flex items-center gap-1.5 text-xs text-green-400">
+                <Lock className="h-3.5 w-3.5" /> Locked
+              </span>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell>
+        <Textarea
+          ref={sourceTextRef}
+          value={localOriginal}
+          onChange={e => setLocalOriginal(e.target.value)}
+          readOnly={isLocked}
+          onBlur={handleOriginalBlur}
+          className={cn(
+            'h-auto text-xs min-h-[60px] select-text',
+            isLocked && 'bg-secondary/20 text-muted-foreground cursor-not-allowed border-dashed'
+          )}
+        />
+      </TableCell>
+      <TableCell>
+        <Textarea
+          value={localTranslation}
+          onChange={e => setLocalTranslation(e.target.value)}
+          readOnly={isLocked}
+          onBlur={handleTranslationBlur}
+          className={cn(
+            'h-auto text-xs min-h-[60px] select-text',
+            isLocked && 'bg-secondary/20 text-muted-foreground cursor-not-allowed border-dashed'
+          )}
+        />
+      </TableCell>
+      <TableCell className="text-right align-top pt-3">
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={e => {
+              e.stopPropagation();
+              suggestTranslation(take);
+            }}
+            disabled={isSuggesting || isLocked}
+            title={isLocked ? 'Unlock to suggest translation' : 'Suggest Translation'}
+          >
+            <Sparkles
+              className={cn('h-4 w-4', isSuggesting && 'animate-spin')}
+            />
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" title="Actions">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="text-xs">
+              <DropdownMenuItem
+                onClick={() => openSplitDialog(index)}
+                disabled={isLocked}
+                className="cursor-pointer gap-2"
+              >
+                <Scissors className="h-3.5 w-3.5 text-muted-foreground" />
+                <span>Split Take...</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => onTakeMerge(index, 'prev')}
+                disabled={isLocked || index === 0 || isPrevLocked}
+                className="cursor-pointer gap-2"
+              >
+                <GitMerge className="h-3.5 w-3.5 text-muted-foreground rotate-180" />
+                <span>Merge with Previous</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => onTakeMerge(index, 'next')}
+                disabled={isLocked || index === takesCount - 1 || isNextLocked}
+                className="cursor-pointer gap-2"
+              >
+                <GitMerge className="h-3.5 w-3.5 text-muted-foreground" />
+                <span>Merge with Next</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                onClick={() => onTakeDelete(take.id)}
+                disabled={isLocked}
+                className="cursor-pointer gap-2 text-destructive focus:text-destructive"
+              >
+                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                <span>Delete Take</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+};
+
 const TakesList: React.FC<TakesListProps> = ({
   takes,
   onTakeUpdate,
@@ -311,158 +522,34 @@ const TakesList: React.FC<TakesListProps> = ({
           </TableHeader>
           <TableBody>
             {takes.map((take, index) => {
-              const isLocked = take.status === 'Locked';
               const isPrevLocked = index > 0 && takes[index - 1].status === 'Locked';
               const isNextLocked = index < takes.length - 1 && takes[index + 1].status === 'Locked';
 
               return (
-                <TableRow
+                <TakeRow
                   key={take.id}
-                  ref={el => {
+                  take={take}
+                  index={index}
+                  selectedTakeIndex={selectedTakeIndex}
+                  currentTime={currentTime}
+                  isPrevLocked={isPrevLocked}
+                  isNextLocked={isNextLocked}
+                  isTakeActive={isTakeActive}
+                  onTakeSelect={onTakeSelect}
+                  onTakeDelete={onTakeDelete}
+                  suggestTranslation={suggestTranslation}
+                  isSuggesting={isSuggesting === take.id}
+                  handleFieldChange={handleFieldChange}
+                  openSplitDialog={openSplitDialog}
+                  onTakeMerge={onTakeMerge}
+                  rowRef={el => {
                     rowRefs.current[index] = el;
                   }}
-                  className={cn(
-                    isTakeActive(take) && 'bg-primary/10',
-                    selectedTakeIndex === index && 'bg-muted/50 border-primary'
-                  )}
-                  onClick={() => onTakeSelect(index)}
-                >
-                  <TableCell className="align-top pt-3">
-                    <Select
-                      value={take.status}
-                      onValueChange={value => handleFieldChange(take.id, 'status', value)}
-                    >
-                      <SelectTrigger
-                        className={cn(
-                          'h-8 text-xs font-medium w-full flex items-center justify-between gap-1',
-                          take.status === 'Pending' &&
-                            'border-muted-foreground/30 text-muted-foreground bg-secondary/10',
-                          take.status === 'Reviewed' && 'border-blue-500/50 text-blue-400 bg-blue-500/5',
-                          take.status === 'Locked' && 'border-green-500/50 text-green-400 bg-green-500/5'
-                        )}
-                      >
-                        <div className="flex items-center gap-1.5 overflow-hidden">
-                          {take.status === 'Locked' ? (
-                            <Lock className="h-3.5 w-3.5 shrink-0 text-green-400" />
-                          ) : take.status === 'Reviewed' ? (
-                            <CheckCircle className="h-3.5 w-3.5 shrink-0 text-blue-400" />
-                          ) : (
-                            <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                          )}
-                          <SelectValue placeholder="Status" />
-                        </div>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Pending">
-                          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Clock className="h-3.5 w-3.5" /> Pending
-                          </span>
-                        </SelectItem>
-                        <SelectItem value="Reviewed">
-                          <span className="flex items-center gap-1.5 text-xs text-blue-400">
-                            <CheckCircle className="h-3.5 w-3.5" /> Reviewed
-                          </span>
-                        </SelectItem>
-                        <SelectItem value="Locked">
-                          <span className="flex items-center gap-1.5 text-xs text-green-400">
-                            <Lock className="h-3.5 w-3.5" /> Locked
-                          </span>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    <Textarea
-                      ref={el => {
-                        sourceTextRefs.current[index] = el;
-                      }}
-                      defaultValue={take.original}
-                      readOnly={isLocked}
-                      onBlur={e => handleFieldChange(take.id, 'original', e.target.value)}
-                      className={cn(
-                        'h-auto text-xs min-h-[60px] select-text',
-                        isLocked && 'bg-secondary/20 text-muted-foreground cursor-not-allowed border-dashed'
-                      )}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Textarea
-                      defaultValue={take.translation}
-                      readOnly={isLocked}
-                      onBlur={e => handleFieldChange(take.id, 'translation', e.target.value)}
-                      className={cn(
-                        'h-auto text-xs min-h-[60px] select-text',
-                        isLocked && 'bg-secondary/20 text-muted-foreground cursor-not-allowed border-dashed'
-                      )}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right align-top pt-3">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={e => {
-                          e.stopPropagation();
-                          suggestTranslation(take);
-                        }}
-                        disabled={isSuggesting === take.id || isLocked}
-                        title={isLocked ? 'Unlock to suggest translation' : 'Suggest Translation'}
-                      >
-                        <Sparkles
-                          className={cn('h-4 w-4', isSuggesting === take.id && 'animate-spin')}
-                        />
-                      </Button>
-
-                      {/* Dropdown actions menu */}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" title="Actions">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="text-xs">
-                          <DropdownMenuItem
-                            onClick={() => openSplitDialog(index)}
-                            disabled={isLocked}
-                            className="cursor-pointer gap-2"
-                          >
-                            <Scissors className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span>Split Take...</span>
-                          </DropdownMenuItem>
-
-                          <DropdownMenuItem
-                            onClick={() => onTakeMerge(index, 'prev')}
-                            disabled={isLocked || index === 0 || isPrevLocked}
-                            className="cursor-pointer gap-2"
-                          >
-                            <GitMerge className="h-3.5 w-3.5 text-muted-foreground rotate-180" />
-                            <span>Merge with Previous</span>
-                          </DropdownMenuItem>
-
-                          <DropdownMenuItem
-                            onClick={() => onTakeMerge(index, 'next')}
-                            disabled={isLocked || index === takes.length - 1 || isNextLocked}
-                            className="cursor-pointer gap-2"
-                          >
-                            <GitMerge className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span>Merge with Next</span>
-                          </DropdownMenuItem>
-
-                          <DropdownMenuSeparator />
-
-                          <DropdownMenuItem
-                            onClick={() => onTakeDelete(take.id)}
-                            disabled={isLocked}
-                            className="cursor-pointer gap-2 text-destructive focus:text-destructive"
-                          >
-                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                            <span>Delete Take</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                  sourceTextRef={el => {
+                    sourceTextRefs.current[index] = el;
+                  }}
+                  takesCount={takes.length}
+                />
               );
             })}
           </TableBody>

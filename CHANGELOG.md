@@ -4,6 +4,30 @@ All notable changes to the **Dubbing Studio Pro (DubiOvi)** project will be docu
 
 ---
 
+## [1.2.3-refinements] - 2026-06-14
+
+### Changed
+- **Metadata Alignment**: Updated version labels, dialog description values, suggested citation strings, and the clipboard citation generator to reflect `v1.2.3 Academic Edition` while preserving the Zenodo DOI link.
+
+### Added
+- **Undo / Redo System**:
+  - Global hotkeys `Ctrl + Z` / `Cmd + Z` (Undo) and `Ctrl + Shift + Z` / `Cmd + Shift + Z` (Redo).
+  - Remembers up to 20 states of takes, glossary, and settings.
+  - Action-specific visual feedback (e.g. `"Undo: Merge Takes"`, `"Redo: Split Take"`).
+  - Automatically synchronizes restored states to the Firestore cloud backup.
+- **Horizontal Timeline Navigation**:
+  - Horizontal scrollbar for the timeline container.
+  - Constant zoom scale (15px per second of video duration) to prevent tiny segment widths on long recordings.
+  - Smooth automatic centering scrolls active takes into focus when indices change.
+- **Glossary Exports**: Added glossary export options under the header **Export** menu:
+  - **Export Glossary: CSV**
+  - **Export Glossary: Excel (.xlsx)**
+  - **Export Glossary: JSON**
+- **Top-Level About Menu**: Moved the **About DubbiOvi** trigger directly to the top-level Menubar trigger for single-click access.
+
+### Fixed
+- **Merge Takes Value Sync Bug**: Converted the takes list table rows to controlled components (`TakeRow`), ensuring that merged texts immediately refresh and display correctly in the browser.
+
 ## [1.2.2-features] - 2026-06-14
 
 ### Added

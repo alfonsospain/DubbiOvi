@@ -1,4 +1,4 @@
-import type { Take } from './types';
+import type { Take, GlossaryEntry } from './types';
 import { formatTimeForDisplay } from './utils';
 import * as XLSX from 'xlsx';
 import {
@@ -384,3 +384,74 @@ export const exportToWordBoth = (
     URL.revokeObjectURL(url);
   });
 };
+
+export const exportGlossaryCSV = (glossary: GlossaryEntry[], projectName: string) => {
+  const headers = ['ID', 'Source Term', 'Target Term', 'Notes'];
+  const escapeCSV = (val: string) => {
+    if (val === undefined || val === null) return '';
+    const str = String(val);
+    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const rows = glossary.map(g => [
+    g.id,
+    g.sourceTerm,
+    g.targetTerm,
+    g.notes || ''
+  ]);
+
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(row => row.map(escapeCSV).join(','))
+  ].join('\r\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `${projectName || 'Project'}_Glossary.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+export const exportGlossaryXLSX = (glossary: GlossaryEntry[], projectName: string) => {
+  const data = glossary.map(g => ({
+    'Term ID': g.id,
+    'Source Term': g.sourceTerm,
+    'Target Term': g.targetTerm,
+    'Notes': g.notes || ''
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Glossary');
+
+  worksheet['!cols'] = [
+    { wch: 36 }, // ID
+    { wch: 25 }, // Source
+    { wch: 25 }, // Target
+    { wch: 40 }  // Notes
+  ];
+
+  XLSX.writeFile(workbook, `${projectName || 'Project'}_Glossary.xlsx`);
+};
+
+export const exportGlossaryJSON = (glossary: GlossaryEntry[], projectName: string) => {
+  const blob = new Blob([JSON.stringify(glossary, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `${projectName || 'Project'}_Glossary.json`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+

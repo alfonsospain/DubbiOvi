@@ -8,6 +8,7 @@ import {
   MenubarItem,
   MenubarMenu,
   MenubarTrigger,
+  MenubarSeparator,
 } from '@/components/ui/menubar';
 import {
   Dialog,
@@ -18,7 +19,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Mic, FolderOpen, FileSpreadsheet, FileText, Plus, Save, Info, HelpCircle, Copy, ExternalLink, Mail, Github } from 'lucide-react';
+import { Mic, FolderOpen, FileSpreadsheet, FileText, Plus, Save, Info, HelpCircle, Copy, ExternalLink, Mail, Github, BookMarked } from 'lucide-react';
 
 interface HeaderProps {
   projectName: string;
@@ -34,6 +35,9 @@ interface HeaderProps {
   onExportWordSource: () => void;
   onExportWordTarget: () => void;
   onExportWordBoth: () => void;
+  onExportGlossaryCSV: () => void;
+  onExportGlossaryXLSX: () => void;
+  onExportGlossaryJSON: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -50,6 +54,9 @@ const Header: React.FC<HeaderProps> = ({
   onExportWordSource,
   onExportWordTarget,
   onExportWordBoth,
+  onExportGlossaryCSV,
+  onExportGlossaryXLSX,
+  onExportGlossaryJSON,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -76,7 +83,7 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   const handleCopyCitation = () => {
-    const citationText = `Rodríguez Fernández-Peña, A. C. (2026). DubbiOvi (Version 1.2.1 Academic Edition). Alfonso Digital Lab, University of Oviedo. https://doi.org/10.5281/zenodo.20683887`;
+    const citationText = `Rodríguez Fernández-Peña, A. C. (2026). DubbiOvi (Version 1.2.3 Academic Edition). Alfonso Digital Lab, University of Oviedo. https://doi.org/10.5281/zenodo.20683887`;
     navigator.clipboard.writeText(citationText)
       .then(() => {
         toast({
@@ -143,15 +150,31 @@ const Header: React.FC<HeaderProps> = ({
             <MenubarItem onClick={onExportCSV} className="cursor-pointer gap-2 text-xs">
               <FileText className="h-3.5 w-3.5 text-blue-500" /> CSV
             </MenubarItem>
+            <MenubarSeparator />
+            <MenubarItem onClick={onExportGlossaryCSV} className="cursor-pointer gap-2 text-xs">
+              <BookMarked className="h-3.5 w-3.5 text-orange-400" /> Export Glossary: CSV
+            </MenubarItem>
+            <MenubarItem onClick={onExportGlossaryXLSX} className="cursor-pointer gap-2 text-xs">
+              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" /> Export Glossary: Excel
+            </MenubarItem>
+            <MenubarItem onClick={onExportGlossaryJSON} className="cursor-pointer gap-2 text-xs">
+              <FileText className="h-3.5 w-3.5 text-yellow-400" /> Export Glossary: JSON
+            </MenubarItem>
           </MenubarContent>
+        </MenubarMenu>
+
+        <MenubarMenu>
+          <MenubarTrigger 
+            onClick={() => setIsAboutOpen(true)} 
+            className="cursor-pointer hover:bg-muted text-xs px-2.5 py-1 rounded-sm"
+          >
+            About
+          </MenubarTrigger>
         </MenubarMenu>
 
         <MenubarMenu>
           <MenubarTrigger className="cursor-pointer hover:bg-muted text-xs px-2.5 py-1 rounded-sm">Help</MenubarTrigger>
           <MenubarContent>
-            <MenubarItem onClick={() => setIsAboutOpen(true)} className="cursor-pointer gap-2 text-xs">
-              <Info className="h-3.5 w-3.5 text-muted-foreground" /> About DubbiOvi
-            </MenubarItem>
             <MenubarItem onClick={() => setIsHelpOpen(true)} className="cursor-pointer gap-2 text-xs">
               <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" /> Help & Contact
             </MenubarItem>
@@ -176,7 +199,7 @@ const Header: React.FC<HeaderProps> = ({
               <Mic className="h-5 w-5 text-primary" /> DubbiOvi
             </DialogTitle>
             <DialogDescription className="text-xs font-semibold text-muted-foreground">
-              v1.2.1 Academic Edition (June 2026)
+              v1.2.3 Academic Edition (June 2026)
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 my-2 text-xs leading-relaxed">
@@ -233,7 +256,7 @@ const Header: React.FC<HeaderProps> = ({
             <div className="p-3 rounded-lg bg-secondary/40 border border-border/60 relative">
               <span className="font-bold text-[9px] text-muted-foreground uppercase tracking-wider block">Suggested Academic Citation</span>
               <pre className="font-mono text-[10.5px] mt-2 text-foreground whitespace-pre-wrap leading-normal font-medium bg-background/50 p-2.5 rounded border border-border/30">
-                {`Rodríguez Fernández-Peña, A. C. (2026).\nDubbiOvi (Version 1.2.1 Academic Edition).\nAlfonso Digital Lab, University of Oviedo.\nhttps://doi.org/10.5281/zenodo.20683887`}
+                {`Rodríguez Fernández-Peña, A. C. (2026).\nDubbiOvi (Version 1.2.3 Academic Edition).\nAlfonso Digital Lab, University of Oviedo.\nhttps://doi.org/10.5281/zenodo.20683887`}
               </pre>
               <Button size="sm" variant="secondary" onClick={handleCopyCitation} className="mt-2.5 w-full h-8 gap-1.5 text-xs">
                 <Copy className="h-3.5 w-3.5" /> Copy Citation

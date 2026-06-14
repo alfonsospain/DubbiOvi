@@ -1,5 +1,6 @@
 export interface ProjectSettings {
-  title: string;
+  projectName: string;
+  title?: string;
   sourceLang: string;
   targetLang: string;
   translator: string;
@@ -14,7 +15,7 @@ export interface Take {
   original: string;
   translation: string;
   notes: string;
-  status: 'In Progress' | 'Translated' | 'Approved';
+  status: 'Pending' | 'Reviewed' | 'Locked';
 }
 
 export interface Language {

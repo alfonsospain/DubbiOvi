@@ -1,10 +1,30 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { UploadCloud } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  UploadCloud,
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Rewind,
+  FastForward,
+  Repeat,
+} from 'lucide-react';
+import { formatTimeForDisplay } from '@/lib/utils';
+import type { Take } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 interface VideoPlayerProps {
   videoRef: React.RefObject<HTMLVideoElement>;
@@ -14,6 +34,13 @@ interface VideoPlayerProps {
   onFileChange: (file: File) => void;
   onTimeUpdate: (time: number) => void;
   onDurationChange: (duration: number) => void;
+  currentTime: number;
+  videoDuration: number;
+  onPrevTake?: () => void;
+  onNextTake?: () => void;
+  hasPrevTake?: boolean;
+  hasNextTake?: boolean;
+  currentTake?: Take | null;
 }
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -24,8 +51,40 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onFileChange,
   onTimeUpdate,
   onDurationChange,
+  currentTime,
+  videoDuration,
+  onPrevTake,
+  onNextTake,
+  hasPrevTake = false,
+  hasNextTake = false,
+  currentTake = null,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState('1.0');
+  const [isRepeating, setIsRepeating] = useState(false);
+
+  // Sync video play/pause states
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
+
+    return () => {
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
+    };
+  }, [videoRef, videoUrl]);
+
+  // Turn off repeat if target take changes
+  useEffect(() => {
+    setIsRepeating(false);
+  }, [currentTake?.id]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -40,23 +99,78 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
+  const handlePlayPause = () => {
+    if (!videoRef.current) return;
+    if (isPlaying) {
+      videoRef.current.pause();
+    } else {
+      setIsRepeating(false);
+      videoRef.current.play().catch(err => console.error('Play failed:', err));
+    }
+  };
+
+  const handleRewind = () => {
+    if (!videoRef.current) return;
+    setIsRepeating(false);
+    videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 5);
+  };
+
+  const handleForward = () => {
+    if (!videoRef.current) return;
+    setIsRepeating(false);
+    videoRef.current.currentTime = Math.min(
+      videoRef.current.duration || 0,
+      videoRef.current.currentTime + 5
+    );
+  };
+
+  const handleSpeedChange = (value: string) => {
+    if (!videoRef.current) return;
+    videoRef.current.playbackRate = parseFloat(value);
+    setPlaybackSpeed(value);
+  };
+
+  const handleRepeatToggle = () => {
+    if (!videoRef.current || !currentTake) return;
+    
+    // Seek to the start of the active take
+    videoRef.current.currentTime = currentTake.startSeconds;
+    
+    // Toggle state and auto play
+    setIsRepeating(true);
+    videoRef.current.play().catch(err => console.error('Play failed:', err));
+  };
+
+  const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const time = e.currentTarget.currentTime;
+    onTimeUpdate(time);
+
+    // Stop at end time of repeat take
+    if (isRepeating && currentTake && time >= currentTake.endSeconds) {
+      e.currentTarget.pause();
+      setIsRepeating(false);
+    }
+  };
+
   return (
-    <Card className="flex-shrink-0">
-      <CardContent className="p-2">
-        <div className="relative aspect-video w-full cursor-pointer overflow-hidden rounded-md bg-slate-900">
+    <Card className="flex-shrink-0 border bg-card text-card-foreground shadow-sm">
+      <CardContent className="p-2 flex flex-col gap-2">
+        <div 
+          className="relative aspect-video w-full cursor-pointer overflow-hidden rounded-md bg-slate-950 border border-border/30"
+          onClick={handleVideoClick}
+        >
           <video
             ref={videoRef}
             src={videoUrl || undefined}
             controls={!!videoUrl}
             className="h-full w-full"
-            onTimeUpdate={e => onTimeUpdate(e.currentTarget.currentTime)}
+            onTimeUpdate={handleTimeUpdate}
             onDurationChange={e => onDurationChange(e.currentTarget.duration)}
             onLoadedMetadata={e => onDurationChange(e.currentTarget.duration)}
           />
           {!videoUrl && (
             <div
               className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-background/80 p-8 text-center"
-              onClick={handleVideoClick}
             >
               {posterUrl && (
                 <Image
@@ -82,6 +196,102 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </div>
           )}
         </div>
+
+        {/* Transport Controls Toolbar */}
+        {videoUrl && (
+          <div className="flex flex-wrap items-center justify-between gap-3 px-2 py-1.5 rounded bg-muted/40 border border-border/50 text-xs">
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 hover:bg-muted"
+                onClick={onPrevTake}
+                disabled={!hasPrevTake}
+                title="Previous Take"
+              >
+                <SkipBack className="h-4 w-4" />
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 hover:bg-muted"
+                onClick={handleRewind}
+                title="Rewind 5 Seconds"
+              >
+                <Rewind className="h-4 w-4" />
+              </Button>
+
+              <Button
+                variant="default"
+                size="icon"
+                className="h-8 w-8 rounded-full"
+                onClick={handlePlayPause}
+                title={isPlaying ? 'Pause' : 'Play'}
+              >
+                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 fill-current ml-0.5" />}
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 hover:bg-muted"
+                onClick={handleForward}
+                title="Fast Forward 5 Seconds"
+              >
+                <FastForward className="h-4 w-4" />
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 hover:bg-muted"
+                onClick={onNextTake}
+                disabled={!hasNextTake}
+                title="Next Take"
+              >
+                <SkipForward className="h-4 w-4" />
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "h-8 w-8 hover:bg-muted",
+                  isRepeating && "text-primary bg-primary/10 hover:bg-primary/20"
+                )}
+                onClick={handleRepeatToggle}
+                disabled={!currentTake}
+                title={currentTake ? "Repeat Current Take (Play & Stop at end)" : "No Take Selected"}
+              >
+                <Repeat className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Display timecode */}
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-[11px] text-muted-foreground select-none">
+                {formatTimeForDisplay(currentTime)} / {formatTimeForDisplay(videoDuration)}
+              </span>
+
+              {/* Playback speed selector */}
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mr-1">Speed</span>
+                <Select value={playbackSpeed} onValueChange={handleSpeedChange}>
+                  <SelectTrigger className="h-7 w-[68px] text-[11px] font-mono px-2 py-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0.75" className="text-[11px] font-mono">0.75x</SelectItem>
+                    <SelectItem value="1.0" className="text-[11px] font-mono">1.0x</SelectItem>
+                    <SelectItem value="1.25" className="text-[11px] font-mono">1.25x</SelectItem>
+                    <SelectItem value="1.5" className="text-[11px] font-mono">1.5x</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

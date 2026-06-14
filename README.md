@@ -1,135 +1,104 @@
 # DubbiOvi
 
-**DubbiOvi** is an open-source AI-assisted audiovisual translation environment designed for teaching, research and knowledge transfer.
+Open Audiovisual Translation Environment
 
-Developed by **Alfonso C. Rodríguez Fernández-Peña** at the **University of Oviedo**, DubbiOvi combines automatic speech recognition, audiovisual segmentation and machine translation into a single workflow for audiovisual translation training and experimentation.
+---
+
+**DOI:** https://doi.org/10.5281/zenodo.20683887  
+**Current Version:** v1.2.3 Academic Edition  
+**License:** MIT License  
+
+---
+
+**DubbiOvi** is an open-source, AI-assisted audiovisual translation (AVT) workspace designed for translation teaching, academic research, and knowledge transfer. Developed at the University of Oviedo, it offers a local-first workspace for scripting, segmenting, translating, and aligning dialogues.
 
 ---
 
 ## Features
 
-### Video Import
+* **AI Transcription**: High-fidelity dialogue transcription powered by Gemini 2.5 Flash.
+* **Automatic Take Segmentation**: Automatic generation of timecoded dialogue segments (takes) from audiovisual content.
+* **Translation Workflow Management**: Interface for scripting, dialogue timing, and translation editing.
+* **Workflow Status System**: Mark takes as **Pending**, **Reviewed**, or **Locked** for visual progress tracking.
+* **Local Project Persistence**: Save and open full workspace states in local `.dubbiovi` project files.
+* **Word Export (.docx)**: Export source script, target translation, or parallel comparison columns.
+* **Excel Export (.xlsx)**: Export complete timed tables.
+* **CSV Export**: Standard CSV exports for scripts and timelines.
+* **Glossary Management**: Built-in terminology panel to store key term pairs.
+* **Glossary Export**: Download terminology assets as CSV, XLSX, or JSON.
+* **Merge Takes**: Easily combine adjacent takes (both text and timeline bounds) with Previous or Next.
+* **Split Takes**: Visually split a take into two parts with proportional timeline calculations.
+* **Professional Video Transport Controls**: Dedicated playback toolbar (Play/Pause, Rewind/FF, and Take Skipping).
+* **Repeat Take**: Auto-loop dialogue segments for transcription and translation review.
+* **Undo / Redo**: Local history stack supporting up to 20 previous operations with action-specific toast feedback.
+* **DOI Support**: Static reference links for academic verification.
+* **MIT License**: Open-source and free for academic and professional use.
 
-* Import local video files directly into the workspace.
-* Built-in video player with synchronized timeline.
+---
 
-### AI Transcription
+## Screenshots
 
-* Audio extraction from video files.
-* Speech recognition powered by **Gemini 2.5 Flash**.
-* Automatic language detection.
-* Automatic take generation and segmentation.
+### Main Interface
 
 ### Translation Workflow
 
-* AI-assisted translation of individual takes.
-* Source and target text editing.
-* Project settings for source and target languages.
-
-### Timeline Synchronization
-
-* Automatic timeline population from AI-generated takes.
-* Visual navigation through translated segments.
-* Interactive take selection.
-
-### Terminology Management
-
-* Integrated glossary support.
-* Consistent terminology across projects.
-
-### Data Management
-
-* Import scripts from text files.
-* Import and export project data in JSON format.
-
----
-
-## Intended Uses
-
-DubbiOvi has been designed for:
-
-* Audiovisual Translation (AVT) teaching
-* Translation technology training
-* Translation workflows research
-* AI-assisted translation experimentation
-* Knowledge transfer activities
-
----
-
-## Technology Stack
-
-* Next.js
-* React
-* TypeScript
-* Tailwind CSS
-* Firebase
-* Genkit
-* Gemini 2.5 Flash
+*(Project screenshots will be added later.)*
 
 ---
 
 ## Installation
 
-Clone the repository:
+### Requirements
+* **Node.js**: Version 20.x or higher is recommended.
+* **NPM**: Node Package Manager.
 
-```bash
-git clone https://github.com/alfonsospain/DubbiOvi.git
-```
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Run the development server:
-
-```bash
-npm run dev
-```
-
-Open:
-
-```text
-http://localhost:9002
-```
+### Setup Steps
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/alfonsospain/DubbiOvi.git
+   cd DubbiOvi
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
+   *The application will be available locally at `http://localhost:9002`.*
 
 ---
 
-## Current Release
+## Recommended Usage
 
-### v1.1.0 – ASR MVP Release
-
-Main additions:
-
-* Gemini-powered transcription
-* Automatic take segmentation
-* Timeline synchronization
-* AI-assisted translation workflow
-* Scrollable takes editor
-* Updated branding
-* Copyright footer
+### AI Transcription Limits
+* **Recommended Video Length**: Dialogue transcription using Gemini 2.5 Flash works best for videos **up to approximately 15 minutes**.
+* **For Longer Productions**:
+  * **Import Scripts**: Pre-segment files using the text or script import feature.
+  * **Section Processing**: Chop videos into segments under 15 minutes before importing.
 
 ---
 
-## License
+## Translation Workflow
 
-MIT License
-
-Copyright © 2026 Alfonso C. Rodríguez Fernández-Peña
-
-University of Oviedo
+DubbiOvi is primarily an Audiovisual Translation Environment. It is fully functional with or without AI support:
+* **With AI**: Leverage speech recognition (Gemini 2.5 Flash) for take transcription and translation suggestions.
+* **Without AI**: Import plain text scripts or create/time dialogue takes manually to practice subtitle placement, translation editing, and transcription.
 
 ---
 
 ## Citation
 
-If you use DubbiOvi in research, teaching or academic publications, please cite:
+Suggested academic citation:
 
-Rodríguez Fernández-Peña, A. C. (2026). *DubbiOvi* (Version 1.1.0). University of Oviedo.
+> Rodríguez Fernández-Peña, A. C. (2026). *DubbiOvi (Version 1.2.3 Academic Edition)*. Alfonso Digital Lab, University of Oviedo. DOI: https://doi.org/10.5281/zenodo.20683887
 
 ---
 
-## Acknowledgements
+## Developer
 
-Developed for teaching, research and knowledge transfer in Audiovisual Translation and Language Technologies.
+* **Developer**: Alfonso C. Rodríguez Fernández-Peña
+* **Affiliation**: Department of English, French and German Philology, University of Oviedo
+* **Contact**: [rodriguezalfonso@uniovi.es](mailto:rodriguezalfonso@uniovi.es)
+* **License**: MIT License

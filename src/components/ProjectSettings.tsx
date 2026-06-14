@@ -30,7 +30,11 @@ const ProjectSettingsComponent: React.FC<ProjectSettingsProps> = ({
   onSettingsChange,
 }) => {
   const handleChange = (field: keyof ProjectSettings, value: string) => {
-    onSettingsChange({ ...settings, [field]: value });
+    if (field === 'projectName') {
+      onSettingsChange({ ...settings, projectName: value, title: value });
+    } else {
+      onSettingsChange({ ...settings, [field]: value });
+    }
   };
 
   return (
@@ -44,12 +48,12 @@ const ProjectSettingsComponent: React.FC<ProjectSettingsProps> = ({
       <CardContent>
         <div className="grid gap-6">
           <div className="grid gap-3">
-            <Label htmlFor="title">Project Title</Label>
+            <Label htmlFor="projectName">Project Name</Label>
             <Input
-              id="title"
+              id="projectName"
               type="text"
-              value={settings.title}
-              onChange={e => handleChange('title', e.target.value)}
+              value={settings.projectName || settings.title || ''}
+              onChange={e => handleChange('projectName', e.target.value)}
               className="w-full"
             />
           </div>

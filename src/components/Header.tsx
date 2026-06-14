@@ -31,6 +31,9 @@ interface HeaderProps {
   onSaveProjectAs: () => void;
   onExportExcel: () => void;
   onExportCSV: () => void;
+  onExportWordSource: () => void;
+  onExportWordTarget: () => void;
+  onExportWordBoth: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -44,6 +47,9 @@ const Header: React.FC<HeaderProps> = ({
   onSaveProjectAs,
   onExportExcel,
   onExportCSV,
+  onExportWordSource,
+  onExportWordTarget,
+  onExportWordBoth,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -122,8 +128,17 @@ const Header: React.FC<HeaderProps> = ({
         <MenubarMenu>
           <MenubarTrigger className="cursor-pointer hover:bg-muted text-xs px-2.5 py-1 rounded-sm">Export</MenubarTrigger>
           <MenubarContent>
+            <MenubarItem onClick={onExportWordSource} className="cursor-pointer gap-2 text-xs">
+              <FileText className="h-3.5 w-3.5 text-blue-400" /> Word: Source Text
+            </MenubarItem>
+            <MenubarItem onClick={onExportWordTarget} className="cursor-pointer gap-2 text-xs">
+              <FileText className="h-3.5 w-3.5 text-green-400" /> Word: Target Text
+            </MenubarItem>
+            <MenubarItem onClick={onExportWordBoth} className="cursor-pointer gap-2 text-xs">
+              <FileText className="h-3.5 w-3.5 text-purple-400" /> Word: Both Texts
+            </MenubarItem>
             <MenubarItem onClick={onExportExcel} className="cursor-pointer gap-2 text-xs">
-              <FileSpreadsheet className="h-3.5 w-3.5 text-green-500" /> Excel (.xlsx)
+              <FileSpreadsheet className="h-3.5 w-3.5 text-green-500" /> Excel
             </MenubarItem>
             <MenubarItem onClick={onExportCSV} className="cursor-pointer gap-2 text-xs">
               <FileText className="h-3.5 w-3.5 text-blue-500" /> CSV

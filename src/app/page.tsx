@@ -26,7 +26,14 @@ import TakesList from '@/components/TakesList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileText, Settings, BookMarked, GripHorizontal } from 'lucide-react';
 import Timeline from '@/components/Timeline';
-import { exportToExcel, exportToCSV } from '@/lib/export-utils';
+import {
+  exportToExcel,
+  exportToCSV,
+  exportToWordSource,
+  exportToWordTarget,
+  exportToWordBoth,
+} from '@/lib/export-utils';
+import { formatTimeForDisplay } from '@/lib/utils';
 import {
   Panel,
   PanelGroup,
@@ -469,6 +476,216 @@ export default function DubbingStudioPro() {
       description: `Downloaded "${name}.csv"`,
     });
   };
+
+  const handleExportWordSource = () => {
+    const name = settings.projectName || settings.title || 'Project';
+    exportToWordSource(takes, name, settings.sourceLang, settings.targetLang);
+    toast({
+      title: 'Word Export Complete',
+      description: `Downloaded "${name}_Source.docx"`,
+    });
+  };
+
+  const handleExportWordTarget = () => {
+    const name = settings.projectName || settings.title || 'Project';
+    exportToWordTarget(takes, name, settings.sourceLang, settings.targetLang);
+    toast({
+      title: 'Word Export Complete',
+      description: `Downloaded "${name}_Target.docx"`,
+    });
+  };
+
+  const handleExportWordBoth = () => {
+    const name = settings.projectName || settings.title || 'Project';
+    exportToWordBoth(takes, name, settings.sourceLang, settings.targetLang);
+    toast({
+      title: 'Word Export Complete',
+      description: `Downloaded "${name}_Both.docx"`,
+    });
+  };
+
+  const handleTakeMerge = async (index: number, direction: 'prev' | 'next') => {
+    if (!db) return;
+
+    const targetIndex = direction === 'prev' ? index - 1 : index;
+    const nextIndex = targetIndex + 1;
+
+    if (targetIndex < 0 || nextIndex >= takes.length) return;
+
+    const t1 = takes[targetIndex];
+    const t2 = takes[nextIndex];
+
+    if (t1.status === 'Locked' || t2.status === 'Locked') {
+      toast({
+        title: 'Merge Denied',
+        description: 'Cannot merge locked takes. Please unlock first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const startSeconds = t1.startSeconds;
+    const endSeconds = t2.endSeconds;
+    const original = [t1.original, t2.original].filter(Boolean).join('\n');
+    const translation = [t1.translation, t2.translation].filter(Boolean).join('\n');
+    const character = t1.character === t2.character ? t1.character : `${t1.character} / ${t2.character}`;
+
+    let status: 'Pending' | 'Reviewed' | 'Locked' = 'Pending';
+    if ((t1.status as string) === 'Locked' && (t2.status as string) === 'Locked') {
+      status = 'Locked';
+    } else if (t1.status === 'Reviewed' && t2.status === 'Reviewed') {
+      status = 'Reviewed';
+    }
+
+    const time = `${formatTimeForDisplay(startSeconds)} - ${formatTimeForDisplay(endSeconds)}`;
+
+    const mergedTake: Take = {
+      id: t1.id,
+      character,
+      time,
+      startSeconds,
+      endSeconds,
+      original,
+      translation,
+      notes: [t1.notes, t2.notes].filter(Boolean).join('\n'),
+      status,
+    };
+
+    const newTakes = [...takes];
+    newTakes.splice(nextIndex, 1);
+    newTakes[targetIndex] = mergedTake;
+
+    setTakes(newTakes);
+    setCurrentIndex(Math.max(0, targetIndex));
+
+    try {
+      const batch = writeBatch(db);
+      const takesColRef = collection(db, 'projects', projectId, 'takes');
+
+      batch.set(doc(takesColRef, t1.id), mergedTake);
+      batch.delete(doc(takesColRef, t2.id));
+
+      await batch.commit();
+
+      toast({
+        title: 'Takes Merged',
+        description: `Merged Take ${targetIndex + 1} and Take ${nextIndex + 1}.`,
+      });
+    } catch (error) {
+      console.error('Failed to merge takes in Firestore', error);
+      toast({
+        title: 'Database Sync Failed',
+        description: 'Merged locally but failed to save in database.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleTakeSplit = async (
+    index: number,
+    source1: string,
+    source2: string,
+    target1: string,
+    target2: string
+  ) => {
+    if (!db) return;
+
+    const t = takes[index];
+    if (!t) return;
+
+    if (t.status === 'Locked') {
+      toast({
+        title: 'Split Denied',
+        description: 'Cannot split a locked take. Please unlock first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const l1 = source1.length;
+    const l2 = source2.length;
+    let ratio = 0.5;
+    if (l1 + l2 > 0) {
+      ratio = l1 / (l1 + l2);
+    } else {
+      const tl1 = target1.length;
+      const tl2 = target2.length;
+      if (tl1 + tl2 > 0) {
+        ratio = tl1 / (tl1 + tl2);
+      }
+    }
+
+    const splitSeconds = t.startSeconds + ratio * (t.endSeconds - t.startSeconds);
+
+    const take1: Take = {
+      id: t.id,
+      character: t.character,
+      time: `${formatTimeForDisplay(t.startSeconds)} - ${formatTimeForDisplay(splitSeconds)}`,
+      startSeconds: t.startSeconds,
+      endSeconds: splitSeconds,
+      original: source1,
+      translation: target1,
+      notes: t.notes,
+      status: 'Pending',
+    };
+
+    const take2Id = uuidv4();
+    const take2: Take = {
+      id: take2Id,
+      character: t.character,
+      time: `${formatTimeForDisplay(splitSeconds)} - ${formatTimeForDisplay(t.endSeconds)}`,
+      startSeconds: splitSeconds,
+      endSeconds: t.endSeconds,
+      original: source2,
+      translation: target2,
+      notes: '',
+      status: 'Pending',
+    };
+
+    const newTakes = [...takes];
+    newTakes[index] = take1;
+    newTakes.splice(index + 1, 0, take2);
+
+    setTakes(newTakes);
+
+    try {
+      const batch = writeBatch(db);
+      const takesColRef = collection(db, 'projects', projectId, 'takes');
+
+      batch.set(doc(takesColRef, t.id), take1);
+      batch.set(doc(takesColRef, take2Id), take2);
+
+      await batch.commit();
+
+      toast({
+        title: 'Take Split',
+        description: `Split Take ${index + 1} into two takes.`,
+      });
+    } catch (error) {
+      console.error('Failed to split take in Firestore', error);
+      toast({
+        title: 'Database Sync Failed',
+        description: 'Split locally but failed to save in database.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleTakeSkip = (direction: 'prev' | 'next') => {
+    if (direction === 'prev' && currentIndex > 0) {
+      const prevIdx = currentIndex - 1;
+      setCurrentIndex(prevIdx);
+      if (videoRef.current && takes[prevIdx]) {
+        videoRef.current.currentTime = takes[prevIdx].startSeconds;
+      }
+    } else if (direction === 'next' && currentIndex < takes.length - 1) {
+      const nextIdx = currentIndex + 1;
+      setCurrentIndex(nextIdx);
+      if (videoRef.current && takes[nextIdx]) {
+        videoRef.current.currentTime = takes[nextIdx].startSeconds;
+      }
+    }
+  };
   
   const handleTakeDelete = async (id: string) => {
     if (!db) return;
@@ -493,6 +710,9 @@ export default function DubbingStudioPro() {
         onSaveProjectAs={handleSaveProjectAs}
         onExportExcel={handleExportExcel}
         onExportCSV={handleExportCSV}
+        onExportWordSource={handleExportWordSource}
+        onExportWordTarget={handleExportWordTarget}
+        onExportWordBoth={handleExportWordBoth}
       />
       <main className="flex-1 flex flex-col p-4 md:p-6 overflow-hidden">
         <PanelGroup direction="vertical" className="flex-grow">
@@ -513,6 +733,13 @@ export default function DubbingStudioPro() {
                         onFileChange={handleVideoFileChange}
                         onTimeUpdate={setCurrentTime}
                         onDurationChange={setVideoDuration}
+                        currentTime={currentTime}
+                        videoDuration={videoDuration}
+                        onPrevTake={() => handleTakeSkip('prev')}
+                        onNextTake={() => handleTakeSkip('next')}
+                        hasPrevTake={currentIndex > 0}
+                        hasNextTake={currentIndex < takes.length - 1}
+                        currentTake={takes[currentIndex]}
                     />
                  </div>
               </Panel>
@@ -546,6 +773,8 @@ export default function DubbingStudioPro() {
                                           videoRef.current.currentTime = takes[index]?.startSeconds ?? 0;
                                       }
                                   }}
+                                  onTakeMerge={handleTakeMerge}
+                                  onTakeSplit={handleTakeSplit}
                                />
                           </TabsContent>
                           <TabsContent value="import" className="flex-grow overflow-y-auto min-h-0 px-4">

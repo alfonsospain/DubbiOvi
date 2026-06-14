@@ -4,6 +4,23 @@ All notable changes to the **Dubbing Studio Pro (DubiOvi)** project will be docu
 
 ---
 
+## [1.2.2-features] - 2026-06-14
+
+### Added
+- **Word Document (.docx) Export**: Client-side document generation using the `docx` library. Added options:
+  - **Word: Source Text**: Exports metadata and a list of takes (Take #, Character, Timecode, and Source Text).
+  - **Word: Target Text**: Exports metadata and a list of takes (Take #, Character, Timecode, Target Text, and Status).
+  - **Word: Both Texts**: Exports metadata and a parallel columns table containing Take #, Character, Timecode, Source Text, Target Text, and Status.
+- **Take Segmentation (Merge/Split) Controls**:
+  - **Merge with Previous & Merge with Next**: Merges adjacent takes, combining text with a newline. Preserves statuses: `Locked + Locked -> Locked`, `Reviewed + Reviewed -> Reviewed`, and other combinations `-> Pending`.
+  - **Split Take...**: Opens a split dialog modal. Calculates proportional split time based on split text segment lengths, showing a live timecode preview.
+  - **Locked Takes Enforcement**: Disables and blocks merge, split, and delete controls on Locked takes.
+- **Professional Video Transport Controls**:
+  - Added dedicated control bar below the video player with buttons: Play/Pause, Rewind 5s, Fast Forward 5s, Previous Take, Next Take, and Repeat Take.
+  - **Repeat Current Take**: Seeks to active take start, plays automatically, and pauses automatically at active take end time.
+  - **Playback Speed**: Selector supporting `0.75x`, `1.0x`, `1.25x`, and `1.5x` playback rates.
+  - **Timecode Displays**: Formats current playback time and total video duration precisely in `MM:SS.ms`.
+
 ## [1.2.1-academic] - 2026-06-14
 
 ### Added

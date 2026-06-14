@@ -1,0 +1,62 @@
+# DubbiOvi
+
+AI-Assisted Audiovisual Translation Environment
+
+Developed within Alfonso Digital Lab
+Department of English, French and German Philology
+University of Oviedo
+
+## Overview
+
+DubbiOvi is an open-source web application designed for audiovisual translation, dubbing adaptation, teaching, and research.
+
+The platform integrates:
+
+* Video playback
+* Script segmentation
+* AI-assisted translation suggestions
+* Terminology management
+* Import and export workflows
+* Real-time project synchronization
+
+## Current Features
+
+* Video import
+* Script import (.docx, .txt, .json)
+* Segment management
+* AI-assisted translation with Gemini
+* Glossary support
+* Firebase synchronization
+
+## Planned Features
+
+* Automatic speech recognition (ASR)
+* Automatic video transcription
+* Speaker detection
+* Timeline enhancement
+* Lip-sync assistance
+* Research analytics
+
+## Intended Use
+
+DubbiOvi has been developed for:
+
+* Audiovisual Translation teaching
+* Translation Technology courses
+* Machine Translation Post-Editing training
+* Translation Studies research
+* Knowledge transfer activities
+
+## License
+
+MIT License
+
+## Author
+
+Alfonso C. Rodríguez Fernández-Peña
+
+University of Oviedo
+
+## Citation
+
+Citation metadata and DOI will be added in future releases.

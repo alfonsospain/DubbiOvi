@@ -4,6 +4,44 @@ All notable changes to the **Dubbing Studio Pro (DubiOvi)** project will be docu
 
 ---
 
+## [1.3.1] - 2026-06-15
+
+### Added
+- **AI Configuration Panel**:
+  - New configuration view under the Settings tab allowing users to input, save, clear, and test their Gemini API keys.
+  - Test connection action to validate model key connectivity before saving.
+  - Interactive status badges displaying key configuration status (`✓ API Key Configured` or `⚠ No API Key Configured`).
+- **UI Safeguards**:
+  - Disabled ASR transcription button and added warning banners in the Import/Export panel if no key is configured.
+  - Disabled translation suggestion buttons and added warning tooltips in the Takes list view if no key is configured.
+
+### Changed
+- **Server Action Dynamic Keys**:
+  - Updated transcription, translation, and sentiment analysis server actions and flows to accept, forward, and apply the dynamic client-provided key per request.
+  - Retained fallback configuration to use the server's environment `GEMINI_API_KEY` when no client key is supplied.
+- **AI Configuration UI Disclosures**:
+  - Added a "Need a Gemini API Key?" section linking to Google AI Studio.
+  - Updated the local storage disclaimer text to outline privacy policies and Google Gemini API usage.
+
+## [1.3.0] - 2026-06-15
+
+### Added
+- **Local Workspace Autosave**:
+  - Client-side backup and restore manager using `localStorage` under the key `dubbiovi_autosave` to preserve project settings, takes, glossary, and active video metadata.
+  - Automatically loads autosaved workspace on page load, showing a Toast notification: `"Local autosave restored."`
+  - Workspace state mutations (takes changes, splits, merges, settings, glossary) now persist immediately to client storage.
+  - Graceful fallback to default project state if no autosave is found.
+
+### Changed
+- **Branding Update**: Updated About dialog tech stack attribution to display `"Built with Next.js, TypeScript, Local Storage and Gemini 2.5 Flash."`
+
+### Removed
+- **Firebase Runtime Dependency**:
+  - Removed `FirebaseClientProvider` wrapper from root layout.
+  - Deleted the entire `src/firebase` directory (config, context provider, hooks).
+  - Cleared Firestore write batches, document snapshots, listeners, and authentication checks from component states.
+  - Removed `"firebase"` from `package.json` dependencies.
+
 ## [1.2.3-refinements] - 2026-06-14
 
 ### Changed

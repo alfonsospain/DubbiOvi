@@ -36,6 +36,7 @@ import {
 } from './ui/dialog';
 import { getTranslationSuggestion } from '@/ai/ai-translation-suggestions';
 import { useToast } from '@/hooks/use-toast';
+import { loadApiKey } from '@/lib/apiKeyStorage';
 import {
   Sparkles,
   Trash2,
@@ -87,6 +88,7 @@ interface TakeRowProps {
   rowRef: (el: HTMLTableRowElement | null) => void;
   sourceTextRef: (el: HTMLTextAreaElement | null) => void;
   takesCount: number;
+  hasApiKey: boolean;
 }
 
 const TakeRow: React.FC<TakeRowProps> = ({
@@ -107,6 +109,7 @@ const TakeRow: React.FC<TakeRowProps> = ({
   rowRef,
   sourceTextRef,
   takesCount,
+  hasApiKey,
 }) => {
   const isLocked = take.status === 'Locked';
   const [localOriginal, setLocalOriginal] = useState(take.original || '');
@@ -220,8 +223,8 @@ const TakeRow: React.FC<TakeRowProps> = ({
               e.stopPropagation();
               suggestTranslation(take);
             }}
-            disabled={isSuggesting || isLocked}
-            title={isLocked ? 'Unlock to suggest translation' : 'Suggest Translation'}
+            disabled={isSuggesting || isLocked || !hasApiKey}
+            title={!hasApiKey ? 'Configure Gemini API Key in Settings to suggest translations' : (isLocked ? 'Unlock to suggest translation' : 'Suggest Translation')}
           >
             <Sparkles
               className={cn('h-4 w-4', isSuggesting && 'animate-spin')}
@@ -295,6 +298,11 @@ const TakesList: React.FC<TakesListProps> = ({
 }) => {
   const { toast } = useToast();
   const [isSuggesting, setIsSuggesting] = useState<string | null>(null);
+  const [hasApiKey, setHasApiKey] = useState(false);
+
+  useEffect(() => {
+    setHasApiKey(!!loadApiKey());
+  }, []);
 
   // Split dialog state
   const [isSplitOpen, setIsSplitOpen] = useState(false);
@@ -340,6 +348,7 @@ const TakesList: React.FC<TakesListProps> = ({
         sourceLanguage: settings.sourceLang,
         targetLanguage: settings.targetLang,
         glossary,
+        apiKey: loadApiKey() || undefined,
       });
 
       if (result.translation) {
@@ -549,6 +558,7 @@ const TakesList: React.FC<TakesListProps> = ({
                     sourceTextRefs.current[index] = el;
                   }}
                   takesCount={takes.length}
+                  hasApiKey={hasApiKey}
                 />
               );
             })}

@@ -13,6 +13,7 @@ import {z} from 'genkit';
 
 const SentimentAnalysisInputSchema = z.object({
   text: z.string().describe('The text to analyze for sentiment.'),
+  apiKey: z.string().optional().describe('User provided Gemini API key.'),
 });
 export type SentimentAnalysisInput = z.infer<typeof SentimentAnalysisInputSchema>;
 
@@ -53,7 +54,10 @@ const sentimentAnalysisFlow = ai.defineFlow(
     outputSchema: SentimentAnalysisOutputSchema,
   },
   async input => {
-    const {output} = await sentimentAnalysisPrompt(input);
+    const {output} = await sentimentAnalysisPrompt(
+      { text: input.text },
+      input.apiKey ? { config: { apiKey: input.apiKey } } : {}
+    );
     return output!;
   }
 );

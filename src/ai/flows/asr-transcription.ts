@@ -11,6 +11,7 @@ const AsrInputSchema = z.object({
   audioBase64: z.string().describe('Base64 encoded WAV audio data.'),
   mimeType: z.string().describe('MIME type of the audio data (e.g. audio/wav).'),
   sourceLanguage: z.string().optional().describe('Source language or "Auto-Detect".'),
+  apiKey: z.string().optional().describe('User provided Gemini API key.'),
 });
 
 const AsrOutputSchema = z.object({
@@ -69,6 +70,7 @@ Constraints:
           }
         }
       ],
+      config: input.apiKey ? { apiKey: input.apiKey } : {},
       output: { schema: AsrOutputSchema },
     });
 

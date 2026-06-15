@@ -4,6 +4,25 @@ All notable changes to the **Dubbing Studio Pro (DubiOvi)** project will be docu
 
 ---
 
+## [1.3.0] - 2026-06-15
+
+### Added
+- **Local Workspace Autosave**:
+  - Client-side backup and restore manager using `localStorage` under the key `dubbiovi_autosave` to preserve project settings, takes, glossary, and active video metadata.
+  - Automatically loads autosaved workspace on page load, showing a Toast notification: `"Local autosave restored."`
+  - Workspace state mutations (takes changes, splits, merges, settings, glossary) now persist immediately to client storage.
+  - Graceful fallback to default project state if no autosave is found.
+
+### Changed
+- **Branding Update**: Updated About dialog tech stack attribution to display `"Built with Next.js, TypeScript, Local Storage and Gemini 2.5 Flash."`
+
+### Removed
+- **Firebase Runtime Dependency**:
+  - Removed `FirebaseClientProvider` wrapper from root layout.
+  - Deleted the entire `src/firebase` directory (config, context provider, hooks).
+  - Cleared Firestore write batches, document snapshots, listeners, and authentication checks from component states.
+  - Removed `"firebase"` from `package.json` dependencies.
+
 ## [1.2.3-refinements] - 2026-06-14
 
 ### Changed

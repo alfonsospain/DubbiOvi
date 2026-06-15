@@ -23,9 +23,6 @@ import { Mic, FolderOpen, FileSpreadsheet, FileText, Plus, Save, Info, HelpCircl
 
 interface HeaderProps {
   projectName: string;
-  onSave: () => void;
-  isSaving: boolean;
-  lastSaved: Date | null;
   onNewProject: () => void;
   onOpenProject: (projectData: any) => void;
   onSaveProject: () => void;
@@ -42,9 +39,6 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({
   projectName,
-  onSave,
-  isSaving,
-  lastSaved,
   onNewProject,
   onOpenProject,
   onSaveProject,
@@ -264,7 +258,7 @@ const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
           <div className="border-t pt-3 mt-1 flex flex-col items-center text-[10px] text-muted-foreground text-center space-y-0.5">
-            <p>Built with Next.js, TypeScript, Firebase and Gemini 2.5 Flash.</p>
+            <p>Built with Next.js, TypeScript, Local Storage and Gemini 2.5 Flash.</p>
             <p className="font-semibold text-foreground/80">University of Oviedo · 2026</p>
           </div>
           <DialogFooter className="mt-2">

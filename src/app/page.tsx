@@ -1,16 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  doc,
-  setDoc,
-  getDoc,
-  collection,
-  onSnapshot,
-  writeBatch,
-  deleteDoc,
-} from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
+import { loadAutosave, saveAutosave, clearAutosave } from '@/lib/projectStorage';
 import type { ProjectSettings, Take, GlossaryEntry } from '@/lib/types';
 import { DEFAULT_PROJECT_SETTINGS } from '@/lib/data';
 import Header from '@/components/Header';
@@ -58,16 +49,43 @@ const normalizeStatus = (status: string | undefined): 'Pending' | 'Reviewed' | '
 };
 
 export default function DubbingStudioPro() {
-  const db = useFirestore();
   const { toast } = useToast();
   const [settings, setSettings] = useState<ProjectSettings>(
     DEFAULT_PROJECT_SETTINGS
   );
   const [takes, setTakes] = useState<Take[]>([]);
   const [glossary, setGlossary] = useState<GlossaryEntry[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoReloadHint, setVideoReloadHint] = useState<string | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [isClient, setIsClient] = useState(false);
+  const [activeTab, setActiveTab] = useState('takes');
+
+  const videoRef = useRef<HTMLVideoElement>(null);
   
   const [past, setPast] = useState<HistoryState[]>([]);
   const [future, setFuture] = useState<HistoryState[]>([]);
+
+  const syncAutosave = useCallback((
+    newSettings: ProjectSettings,
+    newTakes: Take[],
+    newGlossary: GlossaryEntry[],
+    vFileNameOrFile: string | File | null
+  ) => {
+    const videoFileName = typeof vFileNameOrFile === 'string'
+      ? vFileNameOrFile
+      : vFileNameOrFile ? vFileNameOrFile.name : null;
+
+    saveAutosave({
+      settings: newSettings,
+      takes: newTakes,
+      glossary: newGlossary,
+      videoFileName,
+    });
+  }, []);
 
   const pushToHistory = useCallback((actionName: string, customTakes?: Take[], customGlossary?: GlossaryEntry[], customSettings?: ProjectSettings) => {
     setPast(prevPast => {
@@ -86,8 +104,8 @@ export default function DubbingStudioPro() {
     setFuture([]);
   }, [takes, glossary, settings]);
 
-  const handleUndo = useCallback(async () => {
-    if (past.length === 0 || !db) return;
+  const handleUndo = useCallback(() => {
+    if (past.length === 0) return;
 
     const previousState = past[past.length - 1];
     const newPast = past.slice(0, -1);
@@ -106,48 +124,16 @@ export default function DubbingStudioPro() {
     setGlossary(previousState.glossary);
     setSettings(previousState.settings);
 
-    try {
-      const batch = writeBatch(db);
-      batch.set(doc(db, 'projects', projectId), previousState.settings);
+    syncAutosave(previousState.settings, previousState.takes, previousState.glossary, videoFile);
 
-      const takesColRef = collection(db, 'projects', projectId, 'takes');
-      takes.forEach(t => {
-        batch.delete(doc(takesColRef, t.id));
-      });
-      previousState.takes.forEach(t => {
-        batch.set(doc(takesColRef, t.id), t);
-      });
+    toast({
+      title: `Undo: ${previousState.actionName}`,
+      description: 'Previous state has been restored.',
+    });
+  }, [past, takes, glossary, settings, videoFile, syncAutosave, toast]);
 
-      const glossaryColRef = collection(db, 'projects', projectId, 'glossary');
-      glossary.forEach(g => {
-        batch.delete(doc(glossaryColRef, g.id));
-      });
-      previousState.glossary.forEach(g => {
-        batch.set(doc(glossaryColRef, g.id), {
-          sourceTerm: g.sourceTerm,
-          targetTerm: g.targetTerm,
-          notes: g.notes
-        });
-      });
-
-      await batch.commit();
-
-      toast({
-        title: `Undo: ${previousState.actionName}`,
-        description: 'Previous state has been restored.',
-      });
-    } catch (err) {
-      console.error("Undo database sync failed", err);
-      toast({
-        title: 'Undo Error',
-        description: 'Failed to synchronize undo with database.',
-        variant: 'destructive',
-      });
-    }
-  }, [past, takes, glossary, settings, db, toast]);
-
-  const handleRedo = useCallback(async () => {
-    if (future.length === 0 || !db) return;
+  const handleRedo = useCallback(() => {
+    if (future.length === 0) return;
 
     const nextState = future[future.length - 1];
     const newFuture = future.slice(0, -1);
@@ -166,45 +152,13 @@ export default function DubbingStudioPro() {
     setGlossary(nextState.glossary);
     setSettings(nextState.settings);
 
-    try {
-      const batch = writeBatch(db);
-      batch.set(doc(db, 'projects', projectId), nextState.settings);
+    syncAutosave(nextState.settings, nextState.takes, nextState.glossary, videoFile);
 
-      const takesColRef = collection(db, 'projects', projectId, 'takes');
-      takes.forEach(t => {
-        batch.delete(doc(takesColRef, t.id));
-      });
-      nextState.takes.forEach(t => {
-        batch.set(doc(takesColRef, t.id), t);
-      });
-
-      const glossaryColRef = collection(db, 'projects', projectId, 'glossary');
-      glossary.forEach(g => {
-        batch.delete(doc(glossaryColRef, g.id));
-      });
-      nextState.glossary.forEach(g => {
-        batch.set(doc(glossaryColRef, g.id), {
-          sourceTerm: g.sourceTerm,
-          targetTerm: g.targetTerm,
-          notes: g.notes
-        });
-      });
-
-      await batch.commit();
-
-      toast({
-        title: `Redo: ${nextState.actionName}`,
-        description: 'State has been updated.',
-      });
-    } catch (err) {
-      console.error("Redo database sync failed", err);
-      toast({
-        title: 'Redo Error',
-        description: 'Failed to synchronize redo with database.',
-        variant: 'destructive',
-      });
-    }
-  }, [future, takes, glossary, settings, db, toast]);
+    toast({
+      title: `Redo: ${nextState.actionName}`,
+      description: 'State has been updated.',
+    });
+  }, [future, takes, glossary, settings, videoFile, syncAutosave, toast]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -223,107 +177,42 @@ export default function DubbingStudioPro() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo]);
 
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [videoReloadHint, setVideoReloadHint] = useState<string | null>(null);
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [videoDuration, setVideoDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [isSaving, setIsSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [isClient, setIsClient] = useState(false);
-  const [activeTab, setActiveTab] = useState('takes');
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const projectId = 'main-project'; // Using a static project ID for now
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // Effect for loading data from Firestore
+  // Effect for loading data from localStorage
   useEffect(() => {
-    if (!db || !isClient) return;
+    if (!isClient) return;
 
-    const projectDocRef = doc(db, 'projects', projectId);
-    const takesColRef = collection(db, 'projects', projectId, 'takes');
-    const glossaryColRef = collection(db, 'projects', projectId, 'glossary');
-
-    // Load project settings
-    getDoc(projectDocRef).then(docSnap => {
-      if (docSnap.exists()) {
-        setSettings(docSnap.data() as ProjectSettings);
-      } else {
-        setDoc(projectDocRef, DEFAULT_PROJECT_SETTINGS);
+    const restored = loadAutosave();
+    if (restored) {
+      setSettings(restored.settings);
+      setTakes(restored.takes || []);
+      setGlossary(restored.glossary || []);
+      if (restored.videoFileName) {
+        setVideoReloadHint(restored.videoFileName);
       }
-    });
-
-    // Subscribe to takes
-    const unsubscribeTakes = onSnapshot(takesColRef, snapshot => {
-      const serverTakes = snapshot.docs
-        .map(d => {
-          const data = d.data();
-          return {
-            ...(data as Take),
-            id: d.id,
-            status: normalizeStatus((data as any).status),
-          };
-        })
-        .sort((a, b) => a.startSeconds - b.startSeconds);
-      setTakes(serverTakes);
-    });
-
-    // Subscribe to glossary
-    const unsubscribeGlossary = onSnapshot(glossaryColRef, snapshot => {
-      const serverGlossary = snapshot.docs.map(d => ({
-        ...(d.data() as Omit<GlossaryEntry, 'id'>),
-        id: d.id,
-      }));
-      setGlossary(serverGlossary);
-    });
-
-    return () => {
-      unsubscribeTakes();
-      unsubscribeGlossary();
-    };
-  }, [db, isClient]);
-
-  const saveToCloud = useCallback(async () => {
-    if (!db) return;
-    setIsSaving(true);
-    try {
-      const projectDocRef = doc(db, 'projects', projectId);
-      await setDoc(projectDocRef, settings);
-
-      setLastSaved(new Date());
       toast({
-        title: 'Project Saved',
-        description: 'Your project settings have been saved.',
+        title: 'Local autosave restored.',
+        description: `Restored workspace with ${restored.takes?.length || 0} takes.`,
       });
-    } catch (error) {
-      console.error('Failed to save data', error);
-      toast({
-        title: 'Save Failed',
-        description: 'There was an error saving your project.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSaving(false);
+    } else {
+      setSettings(DEFAULT_PROJECT_SETTINGS);
+      setTakes([]);
+      setGlossary([]);
     }
-  }, [db, settings, toast]);
+  }, [isClient, toast]);
 
   const handleSettingsChange = (newSettings: ProjectSettings) => {
     pushToHistory("Project Settings Update");
     setSettings(newSettings);
-    // Persist immediately
-    if (db) {
-      setDoc(doc(db, 'projects', projectId), newSettings);
-    }
+    syncAutosave(newSettings, takes, glossary, videoFile);
   };
 
   const handleTakesChange = async (newTakes: Take[]) => {
-    if (!db) return;
-    
     pushToHistory("Import Takes");
     const newTakesWithIds = newTakes.map(t => ({
       ...t,
@@ -331,25 +220,7 @@ export default function DubbingStudioPro() {
       status: normalizeStatus((t as any).status),
     }));
     setTakes(newTakesWithIds);
-
-    const batch = writeBatch(db);
-    const takesColRef = collection(db, 'projects', projectId, 'takes');
-
-    
-    // Delete takes that are no longer present
-    takes.forEach(take => {
-        if(!newTakes.find(nt => nt.id === take.id)) {
-            batch.delete(doc(takesColRef, take.id));
-        }
-    });
-
-    // Add or update takes
-    newTakesWithIds.forEach(take => {
-      const takeRef = doc(takesColRef, take.id);
-      batch.set(takeRef, take);
-    });
-    
-    await batch.commit();
+    syncAutosave(settings, newTakesWithIds, glossary, videoFile);
 
     if (currentIndex >= newTakesWithIds.length) {
       setCurrentIndex(Math.max(0, newTakesWithIds.length - 1));
@@ -370,10 +241,9 @@ export default function DubbingStudioPro() {
       }
     }
 
-    if (db) {
-      const takeRef = doc(db, 'projects', projectId, 'takes', updatedTake.id);
-      setDoc(takeRef, updatedTake, { merge: true });
-    }
+    const newTakes = takes.map(t => t.id === updatedTake.id ? updatedTake : t);
+    setTakes(newTakes);
+    syncAutosave(settings, newTakes, glossary, videoFile);
   };
 
   const handleTimelineTakeClick = (index: number) => {
@@ -399,34 +269,13 @@ export default function DubbingStudioPro() {
     const url = URL.createObjectURL(file);
     setVideoUrl(url);
     setVideoReloadHint(null);
+    syncAutosave(settings, takes, glossary, file);
   };
   
   const handleGlossaryChange = async (newGlossary: GlossaryEntry[]) => {
-     if (!db) return;
      pushToHistory("Glossary Edit");
-     const batch = writeBatch(db);
-     const glossaryColRef = collection(db, 'projects', projectId, 'glossary');
-     
-     const currentIds = new Set(newGlossary.map(e => e.id));
-     const oldIds = new Set(glossary.map(e => e.id));
-
-     oldIds.forEach(id => {
-       if (!currentIds.has(id)) {
-         batch.delete(doc(glossaryColRef, id));
-       }
-     });
-
-     newGlossary.forEach(entry => {
-       const entryRef = doc(glossaryColRef, entry.id);
-       batch.set(entryRef, {
-           sourceTerm: entry.sourceTerm,
-           targetTerm: entry.targetTerm,
-           notes: entry.notes
-       });
-     });
-
-     await batch.commit();
      setGlossary(newGlossary);
+     syncAutosave(settings, takes, newGlossary, videoFile);
   };
 
   const handleNewProject = async () => {
@@ -439,24 +288,7 @@ export default function DubbingStudioPro() {
     setVideoDuration(0);
     setCurrentTime(0);
     setVideoReloadHint(null);
-
-    if (db) {
-      const batch = writeBatch(db);
-      const projectDocRef = doc(db, 'projects', projectId);
-      batch.set(projectDocRef, DEFAULT_PROJECT_SETTINGS);
-
-      const takesColRef = collection(db, 'projects', projectId, 'takes');
-      takes.forEach(t => {
-        batch.delete(doc(takesColRef, t.id));
-      });
-
-      const glossaryColRef = collection(db, 'projects', projectId, 'glossary');
-      glossary.forEach(g => {
-        batch.delete(doc(glossaryColRef, g.id));
-      });
-
-      await batch.commit();
-    }
+    clearAutosave();
 
     toast({
       title: 'New Project Created',
@@ -502,40 +334,13 @@ export default function DubbingStudioPro() {
       setGlossary(loadedGlossary);
       setCurrentIndex(0);
 
-      // 5. Update Firestore
-      if (db) {
-        const batch = writeBatch(db);
-        const projectDocRef = doc(db, 'projects', projectId);
-        batch.set(projectDocRef, loadedSettings);
-
-        const takesColRef = collection(db, 'projects', projectId, 'takes');
-        // Delete old takes
-        takes.forEach(t => {
-          batch.delete(doc(takesColRef, t.id));
-        });
-        // Set new takes
-        loadedTakes.forEach(t => {
-          batch.set(doc(takesColRef, t.id), t);
-        });
-
-        const glossaryColRef = collection(db, 'projects', projectId, 'glossary');
-        // Delete old glossary
-        glossary.forEach(g => {
-          batch.delete(doc(glossaryColRef, g.id));
-        });
-        // Set new glossary
-        loadedGlossary.forEach(g => {
-          batch.set(doc(glossaryColRef, g.id), g);
-        });
-
-        await batch.commit();
-      }
-
       // 6. Handle video filename reference check
       const fileVideoName = projectData.videoFileName || null;
+      let nextVideoFile = videoFile;
       if (fileVideoName) {
         if (!videoFile || videoFile.name !== fileVideoName) {
           setVideoReloadHint(fileVideoName);
+          nextVideoFile = null;
           toast({
             title: 'Video File Required',
             description: `⚠️ Please reload video file: ${fileVideoName}`,
@@ -547,6 +352,9 @@ export default function DubbingStudioPro() {
       } else {
         setVideoReloadHint(null);
       }
+
+      // 5. Update local storage autosave
+      syncAutosave(loadedSettings, loadedTakes, loadedGlossary, nextVideoFile);
 
       toast({
         title: 'Project Opened Successfully',
@@ -611,10 +419,7 @@ export default function DubbingStudioPro() {
       title: trimmedName,
     };
     setSettings(updatedSettings);
-
-    if (db) {
-      setDoc(doc(db, 'projects', projectId), updatedSettings);
-    }
+    syncAutosave(updatedSettings, takes, glossary, videoFile);
 
     const projectData = {
       formatVersion: '1.2',
@@ -716,8 +521,6 @@ export default function DubbingStudioPro() {
   };
 
   const handleTakeMerge = async (index: number, direction: 'prev' | 'next') => {
-    if (!db) return;
-
     pushToHistory("Merge Takes");
 
     const targetIndex = direction === 'prev' ? index - 1 : index;
@@ -770,28 +573,12 @@ export default function DubbingStudioPro() {
 
     setTakes(newTakes);
     setCurrentIndex(Math.max(0, targetIndex));
+    syncAutosave(settings, newTakes, glossary, videoFile);
 
-    try {
-      const batch = writeBatch(db);
-      const takesColRef = collection(db, 'projects', projectId, 'takes');
-
-      batch.set(doc(takesColRef, t1.id), mergedTake);
-      batch.delete(doc(takesColRef, t2.id));
-
-      await batch.commit();
-
-      toast({
-        title: 'Takes Merged',
-        description: `Merged Take ${targetIndex + 1} and Take ${nextIndex + 1}.`,
-      });
-    } catch (error) {
-      console.error('Failed to merge takes in Firestore', error);
-      toast({
-        title: 'Database Sync Failed',
-        description: 'Merged locally but failed to save in database.',
-        variant: 'destructive',
-      });
-    }
+    toast({
+      title: 'Takes Merged',
+      description: `Merged Take ${targetIndex + 1} and Take ${nextIndex + 1}.`,
+    });
   };
 
   const handleTakeSplit = async (
@@ -801,8 +588,6 @@ export default function DubbingStudioPro() {
     target1: string,
     target2: string
   ) => {
-    if (!db) return;
-
     pushToHistory("Split Take");
 
     const t = takes[index];
@@ -862,28 +647,12 @@ export default function DubbingStudioPro() {
     newTakes.splice(index + 1, 0, take2);
 
     setTakes(newTakes);
+    syncAutosave(settings, newTakes, glossary, videoFile);
 
-    try {
-      const batch = writeBatch(db);
-      const takesColRef = collection(db, 'projects', projectId, 'takes');
-
-      batch.set(doc(takesColRef, t.id), take1);
-      batch.set(doc(takesColRef, take2Id), take2);
-
-      await batch.commit();
-
-      toast({
-        title: 'Take Split',
-        description: `Split Take ${index + 1} into two takes.`,
-      });
-    } catch (error) {
-      console.error('Failed to split take in Firestore', error);
-      toast({
-        title: 'Database Sync Failed',
-        description: 'Split locally but failed to save in database.',
-        variant: 'destructive',
-      });
-    }
+    toast({
+      title: 'Take Split',
+      description: `Split Take ${index + 1} into two takes.`,
+    });
   };
 
   const handleTakeSkip = (direction: 'prev' | 'next') => {
@@ -903,10 +672,10 @@ export default function DubbingStudioPro() {
   };
   
   const handleTakeDelete = async (id: string) => {
-    if (!db) return;
     pushToHistory("Delete Take");
-    const takeRef = doc(db, 'projects', projectId, 'takes', id);
-    await deleteDoc(takeRef);
+    const newTakes = takes.filter(t => t.id !== id);
+    setTakes(newTakes);
+    syncAutosave(settings, newTakes, glossary, videoFile);
   };
 
   const videoPlaceholder = PlaceHolderImages.find(
@@ -917,9 +686,6 @@ export default function DubbingStudioPro() {
     <div className="flex h-screen w-full flex-col dark bg-background">
       <Header
         projectName={settings.projectName || settings.title || 'Untitled Project'}
-        onSave={saveToCloud}
-        isSaving={isSaving}
-        lastSaved={lastSaved}
         onNewProject={handleNewProject}
         onOpenProject={handleOpenProject}
         onSaveProject={handleSaveProject}

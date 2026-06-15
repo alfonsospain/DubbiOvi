@@ -22,7 +22,8 @@ const GetTranslationSuggestionInputSchema = z.object({
   originalText: z.string().describe('The original text to translate.'),
   sourceLanguage: z.string().describe('The language of the original text.'),
   targetLanguage: z.string().describe('The language to translate the text into.'),
-  glossary: z.array(GlossaryEntrySchema).optional().describe('A list of glossary terms to ensure consistent translation.')
+  glossary: z.array(GlossaryEntrySchema).optional().describe('A list of glossary terms to ensure consistent translation.'),
+  apiKey: z.string().optional().describe('User provided Gemini API key.'),
 });
 export type GetTranslationSuggestionInput = z.infer<typeof GetTranslationSuggestionInputSchema>;
 
@@ -61,7 +62,15 @@ const getTranslationSuggestionFlow = ai.defineFlow(
     outputSchema: GetTranslationSuggestionOutputSchema,
   },
   async input => {
-    const {output} = await translationPrompt(input);
+    const {output} = await translationPrompt(
+      {
+        originalText: input.originalText,
+        sourceLanguage: input.sourceLanguage,
+        targetLanguage: input.targetLanguage,
+        glossary: input.glossary,
+      },
+      input.apiKey ? { config: { apiKey: input.apiKey } } : {}
+    );
     
     if (!output) {
       return { translation: "" };

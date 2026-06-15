@@ -21,12 +21,13 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { toSRT, toVTT } from '@/lib/utils';
-import { HardDriveDownload, HardDriveUpload, FileText, UploadCloud, Sparkles, Loader2 } from 'lucide-react';
+import { HardDriveDownload, HardDriveUpload, FileText, UploadCloud, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
 import { Input } from './ui/input';
 import { v4 as uuidv4 } from 'uuid';
 import mammoth from 'mammoth';
 import { extractAudioTrack } from '@/lib/audio-utils';
 import { getAudioTranscription } from '@/app/actions';
+import { loadApiKey } from '@/lib/apiKeyStorage';
 import { SUPPORTED_LANGUAGES } from '@/lib/data';
 
 
@@ -54,6 +55,11 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcriptionStatus, setTranscriptionStatus] = useState('');
   const [selectedAsrLang, setSelectedAsrLang] = useState('Auto-Detect');
+  const [hasApiKey, setHasApiKey] = useState(false);
+
+  React.useEffect(() => {
+    setHasApiKey(!!loadApiKey());
+  }, []);
 
   const handleAsrTranscription = async () => {
     if (!videoFile) {
@@ -77,6 +83,10 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
       const formData = new FormData();
       formData.append('audio', audioBlob, 'audio.wav');
       formData.append('sourceLang', selectedAsrLang);
+      const userApiKey = loadApiKey();
+      if (userApiKey) {
+        formData.append('apiKey', userApiKey);
+      }
 
       // Step 3: Trigger Next.js Server Action
       const result = await getAudioTranscription(formData);
@@ -385,11 +395,21 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
                         </Select>
                       </div>
                       
-                      {!videoFile && (
+                      {!hasApiKey ? (
+                        <div className="p-3.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-200 text-xs flex flex-col gap-1.5">
+                          <p className="font-semibold flex items-center gap-1.5 text-[13px] text-amber-400">
+                            <AlertTriangle className="h-4 w-4" />
+                            Missing Gemini API Key
+                          </p>
+                          <p className="leading-relaxed text-muted-foreground">
+                            To use AI transcription and translation, please configure your Gemini API key in the <strong>Settings</strong> tab.
+                          </p>
+                        </div>
+                      ) : !videoFile ? (
                         <p className="text-xs text-amber-500 font-medium">
                           ⚠️ Please load a video file in the Video Player to start transcription.
                         </p>
-                      )}
+                      ) : null}
                       
                       {isTranscribing && (
                         <div className="flex items-center gap-2 p-3 rounded-md bg-secondary/50 text-xs font-medium text-muted-foreground animate-pulse">
@@ -400,7 +420,7 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
                       
                       <Button 
                         onClick={handleAsrTranscription} 
-                        disabled={!videoFile || isTranscribing}
+                        disabled={!videoFile || isTranscribing || !hasApiKey}
                         className="w-full"
                       >
                         {isTranscribing ? (

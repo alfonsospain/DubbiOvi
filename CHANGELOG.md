@@ -4,6 +4,25 @@ All notable changes to the **Dubbing Studio Pro (DubiOvi)** project will be docu
 
 ---
 
+## [1.3.1] - 2026-06-15
+
+### Added
+- **AI Configuration Panel**:
+  - New configuration view under the Settings tab allowing users to input, save, clear, and test their Gemini API keys.
+  - Test connection action to validate model key connectivity before saving.
+  - Interactive status badges displaying key configuration status (`✓ API Key Configured` or `⚠ No API Key Configured`).
+- **UI Safeguards**:
+  - Disabled ASR transcription button and added warning banners in the Import/Export panel if no key is configured.
+  - Disabled translation suggestion buttons and added warning tooltips in the Takes list view if no key is configured.
+
+### Changed
+- **Server Action Dynamic Keys**:
+  - Updated transcription, translation, and sentiment analysis server actions and flows to accept, forward, and apply the dynamic client-provided key per request.
+  - Retained fallback configuration to use the server's environment `GEMINI_API_KEY` when no client key is supplied.
+- **AI Configuration UI Disclosures**:
+  - Added a "Need a Gemini API Key?" section linking to Google AI Studio.
+  - Updated the local storage disclaimer text to outline privacy policies and Google Gemini API usage.
+
 ## [1.3.0] - 2026-06-15
 
 ### Added

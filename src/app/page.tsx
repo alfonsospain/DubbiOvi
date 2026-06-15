@@ -6,6 +6,7 @@ import type { ProjectSettings, Take, GlossaryEntry } from '@/lib/types';
 import { DEFAULT_PROJECT_SETTINGS } from '@/lib/data';
 import Header from '@/components/Header';
 import ProjectSettingsComponent from '@/components/ProjectSettings';
+import AiConfiguration from '@/components/AiConfiguration';
 import VideoPlayer from '@/components/VideoPlayer';
 import ImportExportPanel from '@/components/ImportExportPanel';
 import { useToast } from '@/hooks/use-toast';
@@ -770,11 +771,12 @@ export default function DubbingStudioPro() {
                                 defaultSourceLang={settings.sourceLang}
                               />
                           </TabsContent>
-                          <TabsContent value="settings" className="flex-grow overflow-y-auto min-h-0 px-4">
+                          <TabsContent value="settings" className="flex-grow overflow-y-auto min-h-0 px-4 flex flex-col gap-6">
                               <ProjectSettingsComponent
                               settings={settings}
                               onSettingsChange={handleSettingsChange}
                               />
+                              <AiConfiguration />
                           </TabsContent>
                           <TabsContent value="glossary" className="flex-grow overflow-y-auto min-h-0 px-4">
                               <GlossaryPanel glossary={glossary} onGlossaryChange={handleGlossaryChange} />

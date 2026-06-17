@@ -19,7 +19,8 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Mic, FolderOpen, FileSpreadsheet, FileText, Plus, Save, Info, HelpCircle, Copy, ExternalLink, Mail, Github, BookMarked } from 'lucide-react';
+import { FolderOpen, FileSpreadsheet, FileText, Plus, Save, Info, HelpCircle, Copy, ExternalLink, Mail, Github, BookMarked } from 'lucide-react';
+import { DubbiOviLogo } from './DubbiOviLogo';
 
 interface HeaderProps {
   projectName: string;
@@ -92,10 +93,7 @@ const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
-      <div className="flex items-center gap-2 mr-2">
-        <Mic className="h-6 w-6 text-primary" />
-        <h1 className="text-lg font-semibold md:text-xl shrink-0">DUBBIOVI</h1>
-      </div>
+      <DubbiOviLogo className="mr-2" />
 
       {/* Hidden input for project loading */}
       <input
@@ -190,7 +188,7 @@ const Header: React.FC<HeaderProps> = ({
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold flex items-center gap-2 text-primary">
-              <Mic className="h-5 w-5 text-primary" /> DubbiOvi
+              <DubbiOviLogo />
             </DialogTitle>
             <DialogDescription className="text-xs font-semibold text-muted-foreground">
               v1.2.3 Academic Edition (June 2026)

@@ -7,14 +7,22 @@ import type {
   SentimentAnalysisOutput,
 } from '@/ai/flows/sentiment-analysis-takes';
 
+function getActiveApiKey(clientKey?: string | null): string | undefined {
+  if (clientKey && clientKey.trim()) {
+    return clientKey.trim();
+  }
+  return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENAI_API_KEY || undefined;
+}
+
 export async function testGeminiConnection(
   apiKey: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const activeKey = getActiveApiKey(apiKey);
     const response = await ai.generate({
       model: 'googleai/gemini-2.5-flash',
       prompt: 'Respond with exactly the word "OK".',
-      config: { apiKey },
+      config: { apiKey: activeKey },
     });
     if (response.text?.trim().toUpperCase().includes('OK')) {
       return { success: true };
@@ -34,7 +42,8 @@ export async function getSentiment(
     return null;
   }
   try {
-    const input: SentimentAnalysisInput = { text, apiKey };
+    const activeKey = getActiveApiKey(apiKey);
+    const input: SentimentAnalysisInput = { text, apiKey: activeKey };
     const result = await analyzeSentiment(input);
     return result;
   } catch (error) {
@@ -63,11 +72,12 @@ export async function getAudioTranscription(
     const base64Data = Buffer.from(arrayBuffer).toString('base64');
     const mimeType = file.type || 'audio/wav';
 
+    const activeKey = getActiveApiKey(apiKey);
     const result = await asrTranscriptionFlow({
       audioBase64: base64Data,
       mimeType,
       sourceLanguage: sourceLang || undefined,
-      apiKey: apiKey || undefined,
+      apiKey: activeKey,
     });
 
     return result;

@@ -1,6 +1,13 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
+  outputFileTracingExcludes: {
+    '*': [
+      './node_modules/sharp/**/*',
+      './node_modules/@img/**/*',
+    ],
+  },
   /* config options here */
   experimental: {
     serverActions: {

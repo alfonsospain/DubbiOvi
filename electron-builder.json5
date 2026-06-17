@@ -1,0 +1,46 @@
+{
+  "appId": "com.dubbiovi.app",
+  "productName": "DubbiOvi",
+  "asar": false,
+  "directories": {
+    "output": "dist"
+  },
+  "files": [
+    "main.js",
+    ".next/standalone/**/*",
+    "package.json",
+    "!node_modules/@img/**/*",
+    "!node_modules/sharp/**/*",
+    "!node_modules/@next/swc-darwin-arm64/**/*",
+    "!node_modules/@next/swc-darwin-x64/**/*",
+    "!node_modules/**/*.node",
+    "!node_modules/**/*.dylib"
+  ],
+  "mac": {
+    "target": [
+      {
+        "target": "dmg",
+        "arch": ["universal"]
+      }
+    ],
+    "icon": "public/icon.png",
+    "category": "public.app-category.education"
+  },
+  "dmg": {
+    "background": null,
+    "iconSize": 100,
+    "contents": [
+      {
+        "x": 130,
+        "y": 150,
+        "type": "file"
+      },
+      {
+        "x": 410,
+        "y": 150,
+        "type": "link",
+        "path": "/Applications"
+      }
+    ]
+  }
+}

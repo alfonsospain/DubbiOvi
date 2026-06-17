@@ -33,7 +33,11 @@ const GetTranslationSuggestionOutputSchema = z.object({
 export type GetTranslationSuggestionOutput = z.infer<typeof GetTranslationSuggestionOutputSchema>;
 
 export async function getTranslationSuggestion(input: GetTranslationSuggestionInput): Promise<GetTranslationSuggestionOutput> {
-  return getTranslationSuggestionFlow(input);
+  const activeKey = input.apiKey?.trim() || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENAI_API_KEY || undefined;
+  return getTranslationSuggestionFlow({
+    ...input,
+    apiKey: activeKey,
+  });
 }
 
 const translationPrompt = ai.definePrompt({

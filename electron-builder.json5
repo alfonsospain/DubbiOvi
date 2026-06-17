@@ -8,7 +8,13 @@
   "files": [
     "main.js",
     ".next/standalone/**/*",
-    "package.json"
+    "package.json",
+    "!node_modules/@img/**/*",
+    "!node_modules/sharp/**/*",
+    "!node_modules/@next/swc-darwin-arm64/**/*",
+    "!node_modules/@next/swc-darwin-x64/**/*",
+    "!node_modules/**/*.node",
+    "!node_modules/**/*.dylib"
   ],
   "mac": {
     "target": [

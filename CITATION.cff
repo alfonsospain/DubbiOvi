@@ -1,0 +1,38 @@
+cff-version: 1.2.0
+
+title: "DubbiOvi"
+
+message: "If you use this software, please cite it as follows."
+
+type: software
+
+authors:
+  - family-names: "Rodríguez Fernández-Peña"
+    given-names: "Alfonso Carlos"
+    affiliation: "University of Oviedo"
+
+version: "1.3.2"
+
+date-released: 2026-06-XX
+
+license: MIT
+
+repository-code: "https://github.com/alfonsospain/DubbiOvi"
+
+DOI: "https://zenodo.org/records/20730230"
+
+abstract: >
+  Open-access AI-assisted dubbing translation platform developed at the
+  University of Oviedo for audiovisual translation research, teaching,
+  and professional workflows.
+
+keywords:
+  - audiovisual translation
+  - dubbing
+  - translation
+  - AI
+  - localisation
+  - Gemini
+  - translation studies
+  - accessibility
+  - digital humanities

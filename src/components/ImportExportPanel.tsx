@@ -36,6 +36,7 @@ interface ImportExportPanelProps {
   onImport: (takes: Take[]) => void;
   videoFile?: File | null;
   defaultSourceLang?: string;
+  projectName?: string;
 }
 
 type ExportFormat = 'json' | 'srt' | 'vtt' | 'txt';
@@ -45,6 +46,7 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
   onImport,
   videoFile,
   defaultSourceLang,
+  projectName,
 }) => {
   const { toast } = useToast();
   const [importJson, setImportJson] = useState('');
@@ -305,6 +307,35 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
       });
   };
 
+  const handleDownload = () => {
+    const baseName = projectName ? projectName.trim() : 'untitled-project';
+    const sanitizedBase = baseName
+      .replace(/[^a-zA-Z0-9-_]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    const fileName = `${sanitizedBase || 'project'}.${exportFormat}`;
+
+    let mimeType = 'text/plain;charset=utf-8';
+    if (exportFormat === 'json') {
+      mimeType = 'application/json;charset=utf-8';
+    }
+
+    const blob = new Blob([exportData], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: 'Download Started',
+      description: `Saving ${fileName}...`,
+    });
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -460,6 +491,7 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
                   </SelectContent>
                 </Select>
                 <Button onClick={handleCopyToClipboard}>Copy to Clipboard</Button>
+                <Button onClick={handleDownload} variant="outline">Download</Button>
               </div>
               <Textarea
                 readOnly

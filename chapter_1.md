@@ -3,7 +3,7 @@
 ## 1.1 About the Software
 
 ### 1.1.1 Overview and Scholarly Context
-**DubbiOvi (Version 1.3.4 Academic Edition)** is a specialized, open-source Audiovisual Translation Environment (AVTE) designed to facilitate pedagogical practice, translation teaching, academic research, and knowledge transfer in philological and translation studies. Developed at the Department of English, French and German Philology of the University of Oviedo, the platform addresses a critical gap in the humanities by providing an accessible, robust, and zero-cost translation workspace for subtitling, scripting, timing, and dialogue alignment. Unlike commercial enterprise subtitling suites, which often impose prohibitive subscription licensing and require extensive data sharing, DubbiOvi is built to serve educational institutions, research labs, and independent scholars working in language science.
+**DubbiOvi (Version 1.3.5 Academic Edition)** is a specialized, open-source Audiovisual Translation Environment (AVTE) designed to facilitate pedagogical practice, translation teaching, academic research, and knowledge transfer in philological and translation studies. Developed at the Department of English, French and German Philology of the University of Oviedo, the platform addresses a critical gap in the humanities by providing an accessible, robust, and zero-cost translation workspace for subtitling, scripting, timing, and dialogue alignment. Unlike commercial enterprise subtitling suites, which often impose prohibitive subscription licensing and require extensive data sharing, DubbiOvi is built to serve educational institutions, research labs, and independent scholars working in language science.
 
 The application functions as a multi-modal, server-assisted translator assistant that coordinates four principal workspace components:
 1.  A local video player canvas.
@@ -16,7 +16,7 @@ Through this unified dashboard, DubbiOvi supports both standard manually-timed t
 ---
 
 ### 1.1.2 The Local-First Architecture Paradigm
-Version 1.3.4 of DubbiOvi implements a strict **local-first software design paradigm**. Originally dependent on cloud database infrastructures (specifically Firebase Firestore, which required continuous internet connectivity, user authentication, and centralized data persistence), the application was refactored in version 1.3.0 to eliminate runtime database dependencies. 
+Version 1.3.5 of DubbiOvi implements a strict **local-first software design paradigm**. Originally dependent on cloud database infrastructures (specifically Firebase Firestore, which required continuous internet connectivity, user authentication, and centralized data persistence), the application was refactored in version 1.3.0 to eliminate runtime database dependencies. 
 
 Under the local-first paradigm:
 *   **Data Ownership and Privacy:** All project assets—including source dialogue scripts, target translations, translator notes, and terminology glossaries—remain strictly within the user’s local runtime environment. This design is highly critical when working with proprietary or pre-release media content, sensitive research interviews, or educational projects subject to institutional review board (IRB) privacy constraints. No project data is transmitted to or stored on external servers, except when explicit, user-initiated requests are sent to the Google Gemini API for transcription or translation.
@@ -31,7 +31,7 @@ To ensure data preservation without a centralized database, DubbiOvi utilizes th
 *   **Autosave Mechanisms:** The application implements a real-time, event-driven serialization manager. Any mutation of the workspace state—such as character name changes, text modifications in the source/target boxes, glossary additions, settings adjustments, or segmentation splits and merges—is immediately captured, serialized into a JSON payload, and saved to the user's browser under the local storage key `dubbiovi_autosave`.
 *   **Restore Protocols:** Upon application initialization, the system checks for the presence of the `dubbiovi_autosave` payload. If found, it automatically parses the JSON data, restores the active workspace state (takes, glossary, settings, and active video metadata), and issues a toast notification indicating a successful restoration.
 *   **The `.dubbiovi` Document Schema:** For long-term preservation, users export their workspace state into a native `.dubbiovi` project file. This file contains a version-controlled JSON schema detailing:
-    *   `formatVersion`: The schema version (set to `1.2` in version 1.3.4).
+    *   `formatVersion`: The schema version (set to `1.2` in version 1.3.5).
     *   `createdAt`: An ISO 8601 timestamp recording the file generation date.
     *   `projectName`: The project title metadata.
     *   `videoFileName`: A string reference to the filename of the loaded video file.
@@ -78,7 +78,7 @@ Because DubbiOvi does not upload video files to a central server, media files mu
 ### 1.3.1 Scholarly Accountability and Replicability
 In humanities research and translation studies, software tools must be properly documented and cited to ensure that research methodologies remain transparent, verifiable, and replicable. DubbiOvi supports these research standards by integrating static academic references and version-controlled metadata directly into the software's user interface.
 
-*   **Version Control:** This manual applies to **Version 1.3.4 Academic Edition**, released in June 2026. The inclusion of the "Academic Edition" designation ensures that researchers can specify the exact software environment used for their translations. This is particularly important for tracking changes in AI model prompting (such as translation templates or structured output formatting) across different versions of the software.
+*   **Version Control:** This manual applies to **Version 1.3.5 Academic Edition**, released in June 2026. The inclusion of the "Academic Edition" designation ensures that researchers can specify the exact software environment used for their translations. This is particularly important for tracking changes in AI model prompting (such as translation templates or structured output formatting) across different versions of the software.
 *   **DOI (Digital Object Identifier) Integration:** DubbiOvi is cataloged in the Zenodo open-access research repository under the persistent identifier `10.5281/zenodo.20683887`. This DOI provides a stable citation link that resolves directly to the software's repository, metadata, and citation records, regardless of future changes to domain names or hosting providers.
 
 ---
@@ -86,7 +86,7 @@ In humanities research and translation studies, software tools must be properly 
 ### 1.3.2 Suggested Academic Citation Format
 When utilizing DubbiOvi for academic publications, translation corpora construction, or philological studies, the software should be cited using the following bibliographic template:
 
-> Rodríguez Fernández-Peña, A. C. (2026). *DubbiOvi (Version 1.3.4 Academic Edition)*. Alfonso Digital Lab, University of Oviedo. Persistent Identifier: https://doi.org/10.5281/zenodo.20683887
+> Rodríguez Fernández-Peña, A. C. (2026). *DubbiOvi (Version 1.3.5 Academic Edition)*. Alfonso Digital Lab, University of Oviedo. Persistent Identifier: https://doi.org/10.5281/zenodo.20683887
 
 To facilitate this citation practice, the application features a one-click citation utility within the **About** modal dialog. Clicking the **"Copy Citation"** button copies the bibliographical block directly to the user's clipboard in standard APA format.
 

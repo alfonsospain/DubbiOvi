@@ -117,6 +117,58 @@ const TakeRow: React.FC<TakeRowProps> = ({
   const [localTranslation, setLocalTranslation] = useState(take.translation || '');
   const [localCharacter, setLocalCharacter] = useState(take.character || '');
 
+  const localSourceRef = useRef<HTMLTextAreaElement | null>(null);
+  const localTargetRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const setSourceRef = React.useCallback((el: HTMLTextAreaElement | null) => {
+    localSourceRef.current = el;
+    if (sourceTextRef) {
+      sourceTextRef(el);
+    }
+  }, [sourceTextRef]);
+
+  const setTargetRef = React.useCallback((el: HTMLTextAreaElement | null) => {
+    localTargetRef.current = el;
+  }, []);
+
+  useEffect(() => {
+    const sourceEl = localSourceRef.current;
+    const targetEl = localTargetRef.current;
+    if (!sourceEl || !targetEl) return;
+
+    let isSyncing = false;
+
+    const observer = new ResizeObserver((entries) => {
+      if (isSyncing) return;
+
+      for (const entry of entries) {
+        const targetHeight = (entry.target as HTMLElement).offsetHeight;
+
+        isSyncing = true;
+        if (entry.target === sourceEl) {
+          targetEl.style.height = `${targetHeight}px`;
+        } else if (entry.target === targetEl) {
+          sourceEl.style.height = `${targetHeight}px`;
+        }
+        isSyncing = false;
+      }
+    });
+
+    observer.observe(sourceEl);
+    observer.observe(targetEl);
+
+    // Initial sync
+    const initialHeight = Math.max(sourceEl.offsetHeight, targetEl.offsetHeight);
+    if (initialHeight > 0) {
+      sourceEl.style.height = `${initialHeight}px`;
+      targetEl.style.height = `${initialHeight}px`;
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
   // Keep state synced with outer prop updates (e.g. merge, split, undo, ASR)
   useEffect(() => {
     setLocalOriginal(take.original || '');
@@ -216,7 +268,7 @@ const TakeRow: React.FC<TakeRowProps> = ({
       </TableCell>
       <TableCell>
         <Textarea
-          ref={sourceTextRef}
+          ref={setSourceRef}
           value={localOriginal}
           onChange={e => setLocalOriginal(e.target.value)}
           readOnly={isLocked}
@@ -229,6 +281,7 @@ const TakeRow: React.FC<TakeRowProps> = ({
       </TableCell>
       <TableCell>
         <Textarea
+          ref={setTargetRef}
           value={localTranslation}
           onChange={e => setLocalTranslation(e.target.value)}
           readOnly={isLocked}

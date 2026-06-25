@@ -770,6 +770,7 @@ export default function DubbingStudioPro() {
                                 onImport={handleTakesChange} 
                                 videoFile={videoFile}
                                 defaultSourceLang={settings.sourceLang}
+                                projectName={settings.projectName || settings.title || 'Untitled Project'}
                               />
                           </TabsContent>
                           <TabsContent value="settings" className="flex-grow overflow-y-auto min-h-0 px-4 flex flex-col gap-6">

@@ -5,7 +5,7 @@ Open Audiovisual Translation Environment
 ---
 
 **DOI:** https://doi.org/10.5281/zenodo.20683887  
-**Current Version:** v1.2.3 Academic Edition  
+**Current Version:** v1.3.4 Academic Edition  
 **License:** MIT License  
 
 ---
@@ -92,7 +92,7 @@ DubbiOvi is primarily an Audiovisual Translation Environment. It is fully functi
 
 Suggested academic citation:
 
-> Rodríguez Fernández-Peña, A. C. (2026). *DubbiOvi (Version 1.2.3 Academic Edition)*. Alfonso Digital Lab, University of Oviedo. DOI: https://doi.org/10.5281/zenodo.20683887
+> Rodríguez Fernández-Peña, A. C. (2026). *DubbiOvi (Version 1.3.4 Academic Edition)*. Alfonso Digital Lab, University of Oviedo. DOI: https://doi.org/10.5281/zenodo.20683887
 
 ---
 

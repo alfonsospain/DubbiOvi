@@ -3,6 +3,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
+import { AudioWaveform } from './AudioWaveform';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,6 +30,7 @@ import { cn } from '@/lib/utils';
 interface VideoPlayerProps {
   videoRef: React.RefObject<HTMLVideoElement>;
   videoUrl: string | null;
+  videoFile: File | null;
   posterUrl?: string;
   posterHint?: string;
   onFileChange: (file: File) => void;
@@ -46,6 +48,7 @@ interface VideoPlayerProps {
 const VideoPlayer: React.FC<VideoPlayerProps> = ({
   videoRef,
   videoUrl,
+  videoFile,
   posterUrl,
   posterHint,
   onFileChange,
@@ -196,6 +199,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </div>
           )}
         </div>
+
+        {/* Audio Waveform */}
+        {videoUrl && (
+          <AudioWaveform
+            videoFile={videoFile}
+            currentTime={currentTime}
+            duration={videoDuration}
+          />
+        )}
 
         {/* Transport Controls Toolbar */}
         {videoUrl && (

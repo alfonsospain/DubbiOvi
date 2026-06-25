@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, dialog } = require('electron');
 const { fork } = require('child_process');
 const path = require('path');
 const http = require('http');
@@ -9,7 +9,7 @@ let nextProcess = null;
 let mainWindow = null;
 
 // Resolve diagnostics logging directory
-const logDir = path.join(app.getPath('home'), 'Library', 'Logs', 'DubbiOvi');
+const logDir = app.getPath('logs');
 if (!fs.existsSync(logDir)) {
   fs.mkdirSync(logDir, { recursive: true });
 }
@@ -29,7 +29,7 @@ function logDiag(message) {
 
 // Log application startup parameters
 logDiag('--- DubbiOvi Diagnostics Startup ---');
-logDiag(`Application Version: 1.3.2`);
+logDiag(`Application Version: 1.3.4`);
 logDiag(`Platform: ${process.platform} (${process.arch})`);
 logDiag(`Node Version: ${process.version}`);
 logDiag(`Electron Version: ${process.versions.electron}`);
@@ -193,7 +193,7 @@ function displayStartupError(message, stderr) {
         
         <div class="info">
           Diagnostics log written to: <br>
-          <code>~/Library/Logs/DubbiOvi/diagnostics.log</code>
+          <code>${logFile}</code>
         </div>
         
         <button class="btn" onclick="window.location.reload()">Retry Launch</button>
@@ -207,33 +207,50 @@ function displayStartupError(message, stderr) {
 }
 
 async function createWindow() {
+  const isDev = !app.isPackaged;
+  let port;
+
+  if (isDev) {
+    port = 9002; // Port configured in package.json dev command
+  } else {
+    // Attempt to use a fixed port (9981) so that origin-based localStorage persists across launches.
+    const preferredPort = 9981;
+    const isFree = await isPortFree(preferredPort);
+    if (!isFree) {
+      logDiag(`[Electron] Preferred port ${preferredPort} is busy. Terminating.`);
+      dialog.showMessageBoxSync({
+        type: 'warning',
+        title: 'DubbiOvi Already Running',
+        message: 'Another instance of DubbiOvi may already be running, or a previous instance did not shut down correctly.',
+        detail: 'Please close the other instance and try again.',
+        buttons: ['Exit']
+      });
+      app.quit();
+      return;
+    }
+    port = preferredPort;
+  }
+
+  const iconPath = isDev
+    ? path.join(__dirname, 'public', 'icon.png')
+    : path.join(app.getAppPath(), '.next', 'standalone', 'public', 'icon.png');
+
+  // Create the main window only if port check succeeds or we are in development
   mainWindow = new BrowserWindow({
     width: 1300,
     height: 850,
     title: 'DubbiOvi',
+    icon: iconPath,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
     },
   });
 
-  const isDev = !app.isPackaged;
-  let port;
-
   if (isDev) {
-    port = 9002; // Port configured in package.json dev command
     logDiag(`[Electron] Connecting to local Next.js dev server at http://127.0.0.1:${port}`);
     await checkServerReady(port);
   } else {
-    // Attempt to use a fixed port (9981) so that origin-based localStorage persists across launches.
-    const preferredPort = 9981;
-    const isFree = await isPortFree(preferredPort);
-    if (isFree) {
-      port = preferredPort;
-    } else {
-      logDiag(`[Electron] Preferred port ${preferredPort} is busy. Falling back to dynamic port.`);
-      port = await getFreePort();
-    }
     logDiag(`[Electron] Starting Next.js standalone server on port ${port}...`);
 
     // In a packaged app, resources are in the app folder (since we compile with asar: false)

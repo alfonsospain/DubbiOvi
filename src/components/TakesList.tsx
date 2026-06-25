@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import type { GlossaryEntry, ProjectSettings, Take } from '@/lib/types';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
+import { Input } from './ui/input';
 import {
   Table,
   TableBody,
@@ -114,6 +115,7 @@ const TakeRow: React.FC<TakeRowProps> = ({
   const isLocked = take.status === 'Locked';
   const [localOriginal, setLocalOriginal] = useState(take.original || '');
   const [localTranslation, setLocalTranslation] = useState(take.translation || '');
+  const [localCharacter, setLocalCharacter] = useState(take.character || '');
 
   // Keep state synced with outer prop updates (e.g. merge, split, undo, ASR)
   useEffect(() => {
@@ -124,6 +126,10 @@ const TakeRow: React.FC<TakeRowProps> = ({
     setLocalTranslation(take.translation || '');
   }, [take.translation]);
 
+  useEffect(() => {
+    setLocalCharacter(take.character || '');
+  }, [take.character]);
+
   const handleOriginalBlur = () => {
     if (localOriginal !== take.original) {
       handleFieldChange(take.id, 'original', localOriginal);
@@ -133,6 +139,12 @@ const TakeRow: React.FC<TakeRowProps> = ({
   const handleTranslationBlur = () => {
     if (localTranslation !== take.translation) {
       handleFieldChange(take.id, 'translation', localTranslation);
+    }
+  };
+
+  const handleCharacterBlur = () => {
+    if (localCharacter !== take.character) {
+      handleFieldChange(take.id, 'character', localCharacter);
     }
   };
 
@@ -188,6 +200,19 @@ const TakeRow: React.FC<TakeRowProps> = ({
             </SelectItem>
           </SelectContent>
         </Select>
+      </TableCell>
+      <TableCell className="w-[130px] align-top pt-3">
+        <Input
+          value={localCharacter}
+          onChange={e => setLocalCharacter(e.target.value)}
+          readOnly={isLocked}
+          onBlur={handleCharacterBlur}
+          className={cn(
+            'h-8 text-xs select-text w-full',
+            isLocked && 'bg-secondary/20 text-muted-foreground cursor-not-allowed border-dashed'
+          )}
+          placeholder="Character"
+        />
       </TableCell>
       <TableCell>
         <Textarea
@@ -524,6 +549,7 @@ const TakesList: React.FC<TakesListProps> = ({
           <TableHeader className="sticky top-0 bg-background z-10">
             <TableRow>
               <TableHead className="w-[125px]">Status</TableHead>
+              <TableHead className="w-[130px]">Character</TableHead>
               <TableHead>Source Text</TableHead>
               <TableHead>Target Text</TableHead>
               <TableHead className="w-[80px] text-right">Tools</TableHead>

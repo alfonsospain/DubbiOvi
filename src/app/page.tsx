@@ -714,6 +714,7 @@ export default function DubbingStudioPro() {
                     <VideoPlayer
                         videoRef={videoRef}
                         videoUrl={videoUrl}
+                        videoFile={videoFile}
                         posterUrl={videoPlaceholder?.imageUrl}
                         posterHint={videoPlaceholder?.imageHint}
                         onFileChange={handleVideoFileChange}

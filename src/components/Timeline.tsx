@@ -158,7 +158,7 @@ const Timeline: React.FC<TimelineProps> = ({
             </div>
             {duration > 0 && (
               <div
-                className="absolute top-0 h-full w-1 -translate-x-1/2 rounded-full bg-primary pointer-events-none z-20"
+                className="absolute top-0 h-full w-1 -translate-x-1/2 rounded-full bg-[#00FF88] pointer-events-none z-20"
                 style={{ left: `${(currentTime / duration) * 100}%` }}
               />
             )}

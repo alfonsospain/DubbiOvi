@@ -7,6 +7,7 @@
   },
   "files": [
     "main.js",
+    "preload.js",
     ".next/standalone/**/*",
     "package.json",
     "!node_modules/@img/**/*",
@@ -24,7 +25,16 @@
       }
     ],
     "icon": "public/icon.png",
-    "category": "public.app-category.education"
+    "category": "public.app-category.education",
+    "fileAssociations": [
+      {
+        "ext": "dubbiovi",
+        "name": "DubbiOvi Project",
+        "description": "DubbiOvi Project File",
+        "role": "Editor",
+        "icon": "public/icon.icns"
+      }
+    ]
   },
   "dmg": {
     "background": null,
@@ -52,7 +62,16 @@
         ]
       }
     ],
-    "icon": "public/icon.ico"
+    "icon": "public/icon.ico",
+    "fileAssociations": [
+      {
+        "ext": "dubbiovi",
+        "name": "DubbiOvi Project",
+        "description": "DubbiOvi Project File",
+        "role": "Editor",
+        "icon": "public/icon.ico"
+      }
+    ]
   },
   "nsis": {
     "oneClick": false,

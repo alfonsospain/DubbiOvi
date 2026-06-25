@@ -5,6 +5,7 @@ const fs = require('fs');
 const svgPath = path.join(__dirname, '..', 'public', 'icon.svg');
 const pngPath = path.join(__dirname, '..', 'public', 'icon.png');
 const icoPath = path.join(__dirname, '..', 'public', 'icon.ico');
+const icnsPath = path.join(__dirname, '..', 'public', 'icon.icns');
 
 if (!fs.existsSync(svgPath)) {
   console.error('[Icon Helper] Error: public/icon.svg not found.');
@@ -75,6 +76,44 @@ async function generateIcons() {
     const icoBuffer = Buffer.concat([icoHeader, ...pngBuffers]);
     fs.writeFileSync(icoPath, icoBuffer);
     console.log('[Icon Helper] Successfully generated ' + icoPath);
+
+    // 3. Generate ICNS for macOS
+    console.log('[Icon Helper] Generating multi-resolution icon.icns (16x16, 32x32, 64x64, 128x128, 256x256, 512x512, 1024x1024)...');
+    const icnsSizes = [
+      { size: 16, type: 'icp4' },
+      { size: 32, type: 'icp5' },
+      { size: 64, type: 'icp6' },
+      { size: 128, type: 'ic07' },
+      { size: 256, type: 'ic08' },
+      { size: 512, type: 'ic09' },
+      { size: 1024, type: 'ic10' }
+    ];
+
+    const icnsBlocks = [];
+    let icnsTotalLength = 8; // Header length (icns + total size)
+
+    for (const { size, type } of icnsSizes) {
+      const buffer = await sharp(svgPath)
+        .resize(size, size)
+        .png()
+        .toBuffer();
+      
+      const blockHeader = Buffer.alloc(8);
+      blockHeader.write(type, 0, 4, 'ascii');
+      blockHeader.writeUInt32BE(buffer.length + 8, 4);
+      
+      icnsBlocks.push(blockHeader);
+      icnsBlocks.push(buffer);
+      icnsTotalLength += 8 + buffer.length;
+    }
+
+    const icnsHeader = Buffer.alloc(8);
+    icnsHeader.write('icns', 0, 4, 'ascii');
+    icnsHeader.writeUInt32BE(icnsTotalLength, 4);
+
+    const icnsBuffer = Buffer.concat([icnsHeader, ...icnsBlocks]);
+    fs.writeFileSync(icnsPath, icnsBuffer);
+    console.log('[Icon Helper] Successfully generated ' + icnsPath);
   } catch (err) {
     console.error('[Icon Helper] Error generating icons:', err);
     process.exit(1);

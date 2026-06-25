@@ -5,6 +5,7 @@ export interface WorkspaceState {
   takes: Take[];
   glossary: GlossaryEntry[];
   videoFileName?: string | null;
+  activeFilePath?: string | null;
 }
 
 const AUTOSAVE_KEY = 'dubbiovi_autosave';

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const { fork } = require('child_process');
 const path = require('path');
 const http = require('http');
@@ -29,7 +29,7 @@ function logDiag(message) {
 
 // Log application startup parameters
 logDiag('--- DubbiOvi Diagnostics Startup ---');
-logDiag(`Application Version: 1.3.6`);
+logDiag(`Application Version: 1.3.7`);
 logDiag(`Platform: ${process.platform} (${process.arch})`);
 logDiag(`Node Version: ${process.version}`);
 logDiag(`Electron Version: ${process.versions.electron}`);
@@ -244,6 +244,7 @@ async function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
     },
   });
 
@@ -339,3 +340,19 @@ app.on('will-quit', () => {
     nextProcess.kill();
   }
 });
+
+// IPC Handlers for native save and file dialogs
+ipcMain.handle('show-save-dialog', async (event, options) => {
+  if (!mainWindow) return { canceled: true };
+  return await dialog.showSaveDialog(mainWindow, options);
+});
+
+ipcMain.handle('save-file', async (event, filePath, data) => {
+  try {
+    fs.writeFileSync(filePath, data, 'utf8');
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+

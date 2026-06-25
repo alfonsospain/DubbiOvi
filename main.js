@@ -29,7 +29,7 @@ function logDiag(message) {
 
 // Log application startup parameters
 logDiag('--- DubbiOvi Diagnostics Startup ---');
-logDiag(`Application Version: 1.3.5`);
+logDiag(`Application Version: 1.3.6`);
 logDiag(`Platform: ${process.platform} (${process.arch})`);
 logDiag(`Node Version: ${process.version}`);
 logDiag(`Electron Version: ${process.versions.electron}`);

@@ -72,7 +72,7 @@ A standard `.dubbiovi` document contains the following fields:
 ```
 
 #### Fields Description:
-*   `formatVersion` *(string)*: Tracks compatibility. Version 1.3.5 uses format `1.2`.
+*   `formatVersion` *(string)*: Tracks compatibility. Version 1.3.6 uses format `1.2`.
 *   `createdAt` *(string)*: ISO 8601 timestamp recording when the file was created.
 *   `projectName` *(string)*: The descriptive name of the project.
 *   `videoFileName` *(string | null)*: The filename of the media file associated with this project. Used for video verification.

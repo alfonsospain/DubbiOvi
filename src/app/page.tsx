@@ -780,9 +780,13 @@ export default function DubbingStudioPro() {
                               />
                               <AiConfiguration />
                           </TabsContent>
-                          <TabsContent value="glossary" className="flex-grow overflow-y-auto min-h-0 px-4">
-                              <GlossaryPanel glossary={glossary} onGlossaryChange={handleGlossaryChange} />
-                          </TabsContent>
+                           <TabsContent value="glossary" className="flex-grow overflow-y-auto min-h-0 px-4">
+                               <GlossaryPanel 
+                                 glossary={glossary} 
+                                 onGlossaryChange={handleGlossaryChange} 
+                                 projectName={settings.projectName || settings.title || 'Untitled Project'}
+                               />
+                           </TabsContent>
                           </Tabs>
                       </CardContent>
                   </Card>

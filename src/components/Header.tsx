@@ -78,7 +78,7 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   const handleCopyCitation = () => {
-    const citationText = `Rodríguez Fernández-Peña, A. C. (2026). DubbiOvi (Version 1.3.5 Academic Edition). Alfonso Digital Lab, University of Oviedo. https://doi.org/10.5281/zenodo.20683887`;
+    const citationText = `Rodríguez Fernández-Peña, A. C. (2026). DubbiOvi (Version 1.3.6 Academic Edition). Alfonso Digital Lab, University of Oviedo. https://doi.org/10.5281/zenodo.20683887`;
     navigator.clipboard.writeText(citationText)
       .then(() => {
         toast({
@@ -191,7 +191,7 @@ const Header: React.FC<HeaderProps> = ({
               <DubbiOviLogo />
             </DialogTitle>
             <DialogDescription className="text-xs font-semibold text-muted-foreground">
-              v1.3.5 Academic Edition (June 2026)
+              v1.3.6 Academic Edition (June 2026)
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 my-2 text-xs leading-relaxed">
@@ -248,7 +248,7 @@ const Header: React.FC<HeaderProps> = ({
             <div className="p-3 rounded-lg bg-secondary/40 border border-border/60 relative">
               <span className="font-bold text-[9px] text-muted-foreground uppercase tracking-wider block">Suggested Academic Citation</span>
               <pre className="font-mono text-[10.5px] mt-2 text-foreground whitespace-pre-wrap leading-normal font-medium bg-background/50 p-2.5 rounded border border-border/30">
-                {`Rodríguez Fernández-Peña, A. C. (2026).\nDubbiOvi (Version 1.3.5 Academic Edition).\nAlfonso Digital Lab, University of Oviedo.\nhttps://doi.org/10.5281/zenodo.20683887`}
+                {`Rodríguez Fernández-Peña, A. C. (2026).\nDubbiOvi (Version 1.3.6 Academic Edition).\nAlfonso Digital Lab, University of Oviedo.\nhttps://doi.org/10.5281/zenodo.20683887`}
               </pre>
               <Button size="sm" variant="secondary" onClick={handleCopyCitation} className="mt-2.5 w-full h-8 gap-1.5 text-xs">
                 <Copy className="h-3.5 w-3.5" /> Copy Citation

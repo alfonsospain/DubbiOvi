@@ -1,4 +1,4 @@
-# DubbiOvi v1.3.5 — Official User Manual
+# DubbiOvi v1.3.6 — Official User Manual
 ## Table of Contents
 
 ### Chapter 1: Introduction & Academic Architecture

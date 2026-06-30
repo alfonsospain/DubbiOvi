@@ -200,29 +200,13 @@ const Header: React.FC<HeaderProps> = ({
               <span className="font-bold text-muted-foreground text-[10px] uppercase">Description</span>
               <p className="text-foreground mt-0.5">Open-source AI-assisted audiovisual translation environment developed for teaching, research and knowledge transfer.</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="font-bold text-muted-foreground text-[10px] uppercase">Software Type</span>
-                <p className="text-foreground mt-0.5">Open Source Software</p>
-              </div>
-              <div>
-                <span className="font-bold text-muted-foreground text-[10px] uppercase">License</span>
-                <p className="text-foreground mt-0.5">MIT License</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <span className="font-bold text-muted-foreground text-[10px] uppercase">Developed Within</span>
-                <p className="text-foreground mt-0.5">Alfonso Digital Lab</p>
-              </div>
-              <div>
-                <span className="font-bold text-muted-foreground text-[10px] uppercase">Developer</span>
-                <p className="text-foreground mt-0.5">Alfonso C. Rodríguez Fernández-Peña</p>
-              </div>
-            </div>
             <div>
-              <span className="font-bold text-muted-foreground text-[10px] uppercase">Affiliation</span>
-              <p className="text-foreground mt-0.5">Department of English, French and German Philology<br />University of Oviedo</p>
+              <span className="font-bold text-muted-foreground text-[10px] uppercase">Developer</span>
+              <p className="text-foreground mt-0.5">
+                Alfonso C. Rodríguez Fernández-Peña<br />
+                Department of English, French and German Philology<br />
+                University of Oviedo
+              </p>
             </div>
             <div>
               <span className="font-bold text-muted-foreground text-[10px] uppercase">Repository</span>
@@ -244,7 +228,7 @@ const Header: React.FC<HeaderProps> = ({
             </div>
             <div>
               <span className="font-bold text-muted-foreground text-[10px] uppercase">Copyright</span>
-              <p className="text-foreground mt-0.5">© Alfonso C. Rodríguez Fernández-Peña 2026</p>
+              <p className="text-foreground mt-0.5">© Universidad de Oviedo, 2026. All rights reserved.</p>
             </div>
             <div className="p-3 rounded-lg bg-secondary/40 border border-border/60 relative">
               <span className="font-bold text-[9px] text-muted-foreground uppercase tracking-wider block">Suggested Academic Citation</span>

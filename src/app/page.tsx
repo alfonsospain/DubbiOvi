@@ -871,7 +871,7 @@ export default function DubbingStudioPro() {
         </PanelGroup>
       </main>
       <footer className="w-full py-2 text-center text-[10px] text-muted-foreground border-t bg-card/20 shrink-0">
-        Copyright Alfonso C. Rodríguez Fernández-Peña 2026
+        Copyright © Universidad de Oviedo, 2026. All rights reserved.
       </footer>
     </div>
   );

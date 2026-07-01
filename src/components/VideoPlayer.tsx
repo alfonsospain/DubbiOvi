@@ -22,6 +22,7 @@ import {
   Rewind,
   FastForward,
   Repeat,
+  ExternalLink,
 } from 'lucide-react';
 import { formatTimeForDisplay } from '@/lib/utils';
 import type { Take } from '@/lib/types';
@@ -43,6 +44,8 @@ interface VideoPlayerProps {
   hasPrevTake?: boolean;
   hasNextTake?: boolean;
   currentTake?: Take | null;
+  onDetachToggle?: () => void;
+  isDetached?: boolean;
 }
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -61,6 +64,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   hasPrevTake = false,
   hasNextTake = false,
   currentTake = null,
+  onDetachToggle,
+  isDetached = false,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -158,6 +163,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   return (
     <Card className="flex-shrink-0 border bg-card text-card-foreground shadow-sm">
       <CardContent className="p-2 flex flex-col gap-2">
+        <div className="flex items-center justify-between px-1 py-0.5 border-b border-border/20 pb-1.5 mb-0.5">
+          <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider select-none">Video Monitor</span>
+          {onDetachToggle && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDetachToggle}
+              className="h-6 text-[10px] font-semibold gap-1 px-2 hover:bg-muted"
+            >
+              <ExternalLink className={cn("h-3 w-3", isDetached && "rotate-180")} />
+              {isDetached ? 'Dock Video' : 'Detach Video'}
+            </Button>
+          )}
+        </div>
         <div 
           className="relative aspect-video w-full cursor-pointer overflow-hidden rounded-md bg-slate-950 border border-border/30"
           onClick={handleVideoClick}

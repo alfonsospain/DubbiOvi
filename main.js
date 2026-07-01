@@ -74,7 +74,8 @@ function isPortFree(port) {
 function checkServerReady(port) {
   return new Promise((resolve) => {
     const start = Date.now();
-    const interval = setInterval(() => {
+    
+    const poll = () => {
       const req = http.request({
         hostname: '127.0.0.1',
         port: port,
@@ -83,19 +84,27 @@ function checkServerReady(port) {
         timeout: 1000,
       }, (res) => {
         if (res.statusCode) {
-          clearInterval(interval);
           resolve(true);
+        } else {
+          setTimeout(poll, 200);
         }
       });
 
       req.on('error', () => {
-        // If it's taking too long, print a debug message
         if (Date.now() - start > 15000) {
           logDiag('Still waiting for Next.js standalone server to start...');
         }
+        setTimeout(poll, 200);
       });
+
+      req.on('timeout', () => {
+        req.destroy();
+      });
+
       req.end();
-    }, 200);
+    };
+
+    poll();
   });
 }
 
@@ -316,6 +325,10 @@ async function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+    if (detachedWindow) {
+      detachedWindow.close();
+      detachedWindow = null;
+    }
   });
 }
 
@@ -355,4 +368,57 @@ ipcMain.handle('save-file', async (event, filePath, data) => {
     return { success: false, error: error.message };
   }
 });
+
+let detachedWindow = null;
+
+ipcMain.on('open-detached-video', (event, url) => {
+  if (detachedWindow) {
+    detachedWindow.focus();
+    return;
+  }
+
+  const { screen } = require('electron');
+  const displays = screen.getAllDisplays();
+  const externalDisplay = displays.find((display) => {
+    return display.bounds.x !== 0 || display.bounds.y !== 0;
+  });
+
+  const windowOptions = {
+    width: 800,
+    height: 600,
+    title: 'DubbiOvi - Video Player',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
+    },
+  };
+
+  if (externalDisplay) {
+    windowOptions.x = externalDisplay.bounds.x + 50;
+    windowOptions.y = externalDisplay.bounds.y + 50;
+  }
+
+  detachedWindow = new BrowserWindow(windowOptions);
+  detachedWindow.loadURL(url);
+
+  detachedWindow.on('closed', () => {
+    detachedWindow = null;
+    if (mainWindow) {
+      mainWindow.webContents.send('detached-window-status', { open: false });
+    }
+  });
+
+  if (mainWindow) {
+    mainWindow.webContents.send('detached-window-status', { open: true });
+  }
+});
+
+ipcMain.on('close-detached-video', () => {
+  if (detachedWindow) {
+    detachedWindow.close();
+    detachedWindow = null;
+  }
+});
+
 

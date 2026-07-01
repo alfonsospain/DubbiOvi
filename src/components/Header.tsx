@@ -36,6 +36,8 @@ interface HeaderProps {
   onExportGlossaryCSV: () => void;
   onExportGlossaryXLSX: () => void;
   onExportGlossaryJSON: () => void;
+  isDetached?: boolean;
+  onDockVideo?: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -52,6 +54,8 @@ const Header: React.FC<HeaderProps> = ({
   onExportGlossaryCSV,
   onExportGlossaryXLSX,
   onExportGlossaryJSON,
+  isDetached = false,
+  onDockVideo,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -183,6 +187,17 @@ const Header: React.FC<HeaderProps> = ({
         <span className="text-[9px] uppercase text-muted-foreground/60 font-bold shrink-0">Project:</span>
         <span className="text-foreground truncate">{projectName}</span>
       </div>
+
+      {isDetached && onDockVideo && (
+        <Button
+          size="sm"
+          variant="destructive"
+          onClick={onDockVideo}
+          className="h-8 gap-1.5 text-xs font-bold shrink-0"
+        >
+          <ExternalLink className="h-3.5 w-3.5 rotate-180" /> Dock Video
+        </Button>
+      )}
 
       {/* About Modal */}
       <Dialog open={isAboutOpen} onOpenChange={setIsAboutOpen}>

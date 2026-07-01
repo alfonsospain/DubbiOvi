@@ -41,6 +41,34 @@ interface ImportExportPanelProps {
 
 type ExportFormat = 'json' | 'srt' | 'vtt' | 'txt';
 
+const STAGE_DETAILS = {
+  preparing: {
+    title: 'Preparing audio...',
+    desc: 'Extracting the audio track from the video.'
+  },
+  optimizing: {
+    title: 'Optimizing audio...',
+    desc: 'Preparing the audio for speech recognition.'
+  },
+  uploading: {
+    title: 'Sending audio to AI...',
+    desc: 'Sending audio securely to the AI service.'
+  },
+  transcribing: {
+    title: 'AI is transcribing...',
+    desc: 'This may take several minutes for long videos. Please keep DubbiOvi open while processing.'
+  },
+  generating: {
+    title: 'Generating takes...',
+    desc: 'Organizing the transcription into dialogue segments.'
+  },
+  completed: {
+    title: 'Completed.',
+    desc: 'All speech segments processed successfully.'
+  }
+};
+
+
 const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
   takes,
   onImport,
@@ -55,7 +83,7 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const [transcriptionStatus, setTranscriptionStatus] = useState('');
+  const [transcriptionStage, setTranscriptionStage] = useState<'preparing' | 'optimizing' | 'uploading' | 'transcribing' | 'generating' | 'completed' | null>(null);
   const [selectedAsrLang, setSelectedAsrLang] = useState('Auto-Detect');
   const [hasApiKey, setHasApiKey] = useState(false);
 
@@ -74,14 +102,14 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
     }
 
     setIsTranscribing(true);
-    setTranscriptionStatus('Extracting audio track from video...');
+    setTranscriptionStage('preparing');
 
     try {
       // Step 1: Decode and downsample video audio to 16kHz mono WAV Blob
       const audioBlob = await extractAudioTrack(videoFile);
 
       // Step 2: Package WAV file and target language selection in FormData
-      setTranscriptionStatus('Analyzing speech with Gemini AI...');
+      setTranscriptionStage('optimizing');
       const formData = new FormData();
       formData.append('audio', audioBlob, 'audio.wav');
       formData.append('sourceLang', selectedAsrLang);
@@ -91,6 +119,8 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
       }
 
       // Step 3: Trigger Next.js Server Action
+      setTranscriptionStage('uploading');
+      setTranscriptionStage('transcribing');
       const result = await getAudioTranscription(formData);
 
       if (!result) {
@@ -102,6 +132,7 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
       }
 
       // Step 4: Map Gemini takes to DubbiOvi Take structure
+      setTranscriptionStage('generating');
       const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
         const secs = Math.floor(seconds % 60).toString().padStart(2, '0');
@@ -122,8 +153,8 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
       }));
 
       // Step 5: Save takes
-      setTranscriptionStatus('Syncing takes to project database...');
       onImport(newTakes);
+      setTranscriptionStage('completed');
 
       toast({
         title: 'ASR Transcription Complete',
@@ -138,7 +169,7 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
       });
     } finally {
       setIsTranscribing(false);
-      setTranscriptionStatus('');
+      setTranscriptionStage(null);
     }
   };
 
@@ -442,10 +473,15 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
                         </p>
                       ) : null}
                       
-                      {isTranscribing && (
-                        <div className="flex items-center gap-2 p-3 rounded-md bg-secondary/50 text-xs font-medium text-muted-foreground animate-pulse">
-                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                          <span>{transcriptionStatus}</span>
+                      {isTranscribing && transcriptionStage && STAGE_DETAILS[transcriptionStage] && (
+                        <div className="flex flex-col gap-1.5 p-3.5 rounded-lg border border-border/50 bg-secondary/30 text-xs select-none">
+                          <div className="flex items-center gap-2 font-bold text-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+                            <span>{STAGE_DETAILS[transcriptionStage].title}</span>
+                          </div>
+                          <p className="text-muted-foreground pl-6 leading-relaxed">
+                            {STAGE_DETAILS[transcriptionStage].desc}
+                          </p>
                         </div>
                       )}
                       
@@ -457,7 +493,7 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
                         {isTranscribing ? (
                           <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Transcribing...
+                            AI Transcribing...
                           </>
                         ) : (
                           <>

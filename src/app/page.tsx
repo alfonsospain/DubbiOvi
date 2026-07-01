@@ -223,6 +223,25 @@ export default function DubbingStudioPro() {
     };
   }, [videoFile, takes]);
 
+  // Live take synchronization with the detached window
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!isDetached) return;
+
+    const channel = new BroadcastChannel('dubbiovi-video-sync');
+    channel.postMessage({
+      type: 'TAKES_UPDATE',
+      payload: {
+        takes: takes,
+      }
+    });
+
+    return () => {
+      channel.close();
+    };
+  }, [takes, isDetached]);
+
+
 
   const handleDetachVideo = () => {
     if (typeof window !== 'undefined' && (window as any).electron?.openDetachedWindow) {

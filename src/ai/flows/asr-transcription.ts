@@ -19,8 +19,8 @@ const AsrOutputSchema = z.object({
   takes: z.array(
     z.object({
       character: z.string().describe('Speaker identity or name.'),
-      startSeconds: z.number().describe('Start time in seconds (decimal).'),
-      endSeconds: z.number().describe('End time in seconds (decimal).'),
+      startTime: z.string().describe('Start time in HH:MM:SS.mmm format.'),
+      endTime: z.string().describe('End time in HH:MM:SS.mmm format.'),
       original: z.string().describe('Transcription text in the source language.'),
     })
   ),
@@ -61,7 +61,8 @@ Constraints:
    - Each take should represent a single sentence or logical clause.
    - Do NOT let any single take exceed 10.0 seconds of audio.
    - Create a split whenever a pause longer than 1.5 seconds is detected.
-   - The timestamps "startSeconds" and "endSeconds" must correspond to the exact boundaries of the spoken audio block.`
+   - The timestamps "startTime" and "endTime" must correspond to the exact boundaries of the spoken audio block.
+   - You MUST format these timestamps strictly as strings in the "HH:MM:SS.mmm" format (e.g. "00:00:03.250", "00:07:12.430", "00:19:45.120"). Do NOT return them as numbers, and do not omit any parts of the timecode.`
         },
         {
           media: {

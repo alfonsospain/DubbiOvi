@@ -76,3 +76,41 @@ export function toVTT(takes: Take[]): string {
     .join('\n');
   return vtt;
 }
+
+/**
+ * Parses a timestamp in HH:MM:SS.mmm (or HH:MM:SS,mmm) format into absolute decimal seconds.
+ * 
+ * @param timestamp The timestamp string.
+ * @returns The absolute time in decimal seconds.
+ */
+export function parseTimestampToSeconds(timestamp: string): number {
+  if (!timestamp || typeof timestamp !== 'string') {
+    throw new Error('Invalid timestamp input: must be a non-empty string');
+  }
+
+  // Normalize comma to dot for decimal milliseconds
+  const normalized = timestamp.trim().replace(',', '.');
+
+  // Regex to match HH:MM:SS.mmm format (HH can be 1 or more digits)
+  const regex = /^(\d+):([0-5]\d):([0-5]\d)\.(\d+)$/;
+  const match = normalized.match(regex);
+
+  if (!match) {
+    throw new Error(`Malformed timestamp: "${timestamp}". Expected format HH:MM:SS.mmm`);
+  }
+
+  const hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const seconds = parseInt(match[3], 10);
+  
+  // Convert milliseconds fractional part (e.g. "250" -> 0.250, "4" -> 0.004)
+  const msStr = match[4];
+  const milliseconds = parseInt(msStr, 10) / Math.pow(10, msStr.length);
+
+  if (isNaN(hours) || isNaN(minutes) || isNaN(seconds) || isNaN(milliseconds)) {
+    throw new Error(`Malformed timestamp: "${timestamp}". Numbers could not be parsed`);
+  }
+
+  return hours * 3600 + minutes * 60 + seconds + milliseconds;
+}
+

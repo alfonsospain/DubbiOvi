@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { toSRT, toVTT } from '@/lib/utils';
+import { toSRT, toVTT, parseTimestampToSeconds } from '@/lib/utils';
 import { HardDriveDownload, HardDriveUpload, FileText, UploadCloud, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
 import { Input } from './ui/input';
 import { v4 as uuidv4 } from 'uuid';
@@ -140,17 +140,21 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
         return `${mins}:${secs}.${ms}`;
       };
 
-      const newTakes: Take[] = result.takes.map(t => ({
-        id: uuidv4(),
-        character: t.character,
-        original: t.original,
-        translation: '',
-        notes: '',
-        status: 'Pending',
-        startSeconds: t.startSeconds,
-        endSeconds: t.endSeconds,
-        time: `${formatTime(t.startSeconds)} --> ${formatTime(t.endSeconds)}`,
-      }));
+      const newTakes: Take[] = result.takes.map(t => {
+        const startSecs = parseTimestampToSeconds(t.startTime);
+        const endSecs = parseTimestampToSeconds(t.endTime);
+        return {
+          id: uuidv4(),
+          character: t.character,
+          original: t.original,
+          translation: '',
+          notes: '',
+          status: 'Pending',
+          startSeconds: startSecs,
+          endSeconds: endSecs,
+          time: `${formatTime(startSecs)} --> ${formatTime(endSecs)}`,
+        };
+      });
 
       // Step 5: Save takes
       onImport(newTakes);

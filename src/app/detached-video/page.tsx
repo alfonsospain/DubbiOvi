@@ -41,6 +41,8 @@ export default function DetachedVideoPage() {
             console.error('Failed to fetch video file for waveform decoding:', err);
           }
         }
+      } else if (type === 'TAKES_UPDATE' && payload) {
+        setTakes(payload.takes || []);
       }
     };
 
